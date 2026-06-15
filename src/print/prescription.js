@@ -2,6 +2,7 @@
 // DocRx — Print Engine (A4 Prescription + Patient Summary)
 // ============================================================
 import { queryOne, queryAll } from '../db/index.js';
+import { showModal } from '../components/Modal.js';
 
 export function _executePrint(visitId, pharmacyId = null, diagCenterId = null) {
   const visit   = queryOne('SELECT * FROM visits WHERE id=?', [visitId]);
@@ -253,50 +254,42 @@ window.__printVisit = (visitId) => {
   const defaultPharmId = pharmacies.find(p => p.is_default)?.id || '';
   const defaultDiagId = diagCenters.find(d => d.is_default)?.id || '';
 
-  const modal = document.createElement('div');
-  modal.className = 'modal open';
-  modal.innerHTML = `
-    <div class="modal-box" style="max-width: 450px;">
-      <h3 class="font-bold text-lg mb-4">Print Options</h3>
-      
+  const bodyHtml = `
+    <div style="display: flex; flex-direction: column; gap: 16px;">
       ${pharmacies.length ? `
-      <div class="form-group mb-4">
-        <label class="form-label">Medical Shop (Pharmacy)</label>
-        <select class="input" id="print-pharmacy-select">
+      <div class="form-group">
+        <label class="form-label" style="font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; display: block;">Medical Shop (Pharmacy)</label>
+        <select class="input" id="print-pharmacy-select" style="width: 100%;">
           <option value="">-- Do not recommend --</option>
-          ${pharmacies.map(p => `<option value="${p.id}" ${p.id === defaultPharmId ? 'selected' : ''}>${p.name}</option>`).join('')}
+          ${pharmacies.map(p => `<option value="${p.id}" ${p.id === defaultPharmId ? 'selected' : ''}>${e(p.name)}</option>`).join('')}
         </select>
       </div>` : ''}
 
       ${diagCenters.length ? `
-      <div class="form-group mb-4">
-        <label class="form-label">Diagnostic Center</label>
-        <select class="input" id="print-diag-select">
+      <div class="form-group">
+        <label class="form-label" style="font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; display: block;">Diagnostic Center</label>
+        <select class="input" id="print-diag-select" style="width: 100%;">
           <option value="">-- Do not recommend --</option>
-          ${diagCenters.map(p => `<option value="${p.id}" ${p.id === defaultDiagId ? 'selected' : ''}>${p.name}</option>`).join('')}
+          ${diagCenters.map(p => `<option value="${p.id}" ${p.id === defaultDiagId ? 'selected' : ''}>${e(p.name)}</option>`).join('')}
         </select>
       </div>` : ''}
-
-      <div class="modal-action">
-        <button class="btn btn-ghost" id="print-cancel-btn">Cancel</button>
-        <button class="btn btn-primary" id="print-confirm-btn">Print Now</button>
-      </div>
     </div>
   `;
 
-  document.body.appendChild(modal);
-
-  modal.querySelector('#print-cancel-btn').onclick = () => {
-    modal.remove();
-  };
-
-  modal.querySelector('#print-confirm-btn').onclick = () => {
-    const pharmId = modal.querySelector('#print-pharmacy-select')?.value || null;
-    const diagId = modal.querySelector('#print-diag-select')?.value || null;
-    modal.remove();
-    _executePrint(visitId, pharmId, diagId);
-  };
+  showModal({
+    title: 'Print Options',
+    bodyHtml,
+    confirmText: 'Print Now',
+    cancelText: 'Cancel',
+    onConfirm: (overlay) => {
+      const pharmId = overlay.querySelector('#print-pharmacy-select')?.value || null;
+      const diagId = overlay.querySelector('#print-diag-select')?.value || null;
+      _executePrint(visitId, pharmId, diagId);
+    }
+  });
 };
+
+function e(val) { return val != null ? String(val).replace(/"/g, '&quot;').replace(/</g, '&lt;') : ''; }
 
 function calcAge(dob) {
   return Math.floor((Date.now() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000));

@@ -5,6 +5,7 @@ import { queryAll, queryOne, run, runGetId } from '../db/index.js';
 import { navigate } from '../router.js';
 import { toast } from '../components/Toast.js';
 import { createAutocomplete } from '../components/Autocomplete.js';
+import { showModal } from '../components/Modal.js';
 
 export function renderVisitForm(container, params) {
   const { patientId, visitId } = params;
@@ -323,26 +324,44 @@ export function renderVisitForm(container, params) {
   container.querySelector('#height')?.addEventListener('input', updateBMI);
 
   // --- Unlock Logic ---
-  window.__unlockVisit = async () => {
-    const pwd = prompt('Enter your admin password to unlock this visit:');
-    if (!pwd) return;
-    
-    try {
-      const settings = queryOne('SELECT password_hash, password_salt FROM settings WHERE id=1');
-      const { verifyPassword } = await import('../auth/crypto.js');
-      const isValid = await verifyPassword(pwd, settings.password_salt, settings.password_hash);
-      
-      if (isValid) {
-        isLocked = false;
-        renderInner();
-        toast.success('Visit unlocked for editing.');
-      } else {
-        toast.error('Incorrect password.');
+  window.__unlockVisit = () => {
+    const bodyHtml = `
+      <div class="form-group">
+        <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Admin Password</label>
+        <input type="password" class="input" id="unlock-password-input" placeholder="Enter password to unlock" style="width:100%" autofocus />
+      </div>
+    `;
+
+    showModal({
+      title: 'Unlock Visit',
+      bodyHtml,
+      confirmText: 'Unlock',
+      cancelText: 'Cancel',
+      onConfirm: async (overlay) => {
+        const pwd = overlay.querySelector('#unlock-password-input').value;
+        if (!pwd) {
+          toast.error('Password is required.');
+          return false;
+        }
+        
+        try {
+          const settings = queryOne('SELECT password_hash, password_salt FROM settings WHERE id=1');
+          const { verifyPassword } = await import('../auth/crypto.js');
+          const isValid = await verifyPassword(pwd, settings.password_salt, settings.password_hash);
+          
+          if (isValid) {
+            isLocked = false;
+            renderInner();
+            toast.success('Visit unlocked for editing.');
+          } else {
+            toast.error('Incorrect password.');
+          }
+        } catch (err) {
+          console.error(err);
+          toast.error('Error unlocking visit.');
+        }
       }
-    } catch (err) {
-      console.error(err);
-      toast.error('Error unlocking visit.');
-    }
+    });
   };
 
   // --- Diagnosis autocomplete ---

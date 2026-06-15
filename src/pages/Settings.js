@@ -4,6 +4,7 @@
 import { queryOne, queryAll, run } from '../db/index.js';
 import { toast } from '../components/Toast.js';
 import { navigate, getParams } from '../router.js';
+import { showModal } from '../components/Modal.js';
 
 export function renderSettings(container) {
   const s = queryOne('SELECT * FROM settings WHERE id=1') || {};
@@ -334,17 +335,48 @@ export function renderSettings(container) {
 
   // Partner Management
   window.__addPartner = (table) => {
-    const name = prompt('Enter Partner Name:');
-    if (!name) return;
-    const address = prompt('Enter Address/Location (Optional):') || '';
-    const phone = prompt('Enter Phone Number (Optional):') || '';
-    
-    // If it's the first one, make it default
-    const count = queryOne(`SELECT COUNT(*) as c FROM ${table}`).c;
-    const isDefault = count === 0 ? 1 : 0;
-    
-    run(`INSERT INTO ${table} (name, address, phone, is_default) VALUES (?, ?, ?, ?)`, [name, address, phone, isDefault]);
-    navigate('/settings?tab=partners');
+    const isPharm = table === 'pharmacies';
+    const typeLabel = isPharm ? 'Medical Shop (Pharmacy)' : 'Diagnostic Center';
+    const bodyHtml = `
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="form-group">
+          <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Name <span style="color:var(--danger)">*</span></label>
+          <input type="text" class="input" id="partner-name-input" placeholder="e.g. Care Pharmacy" style="width:100%" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Address / Location (Optional)</label>
+          <input type="text" class="input" id="partner-address-input" placeholder="e.g. Hyderabad, TS" style="width:100%" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Phone (Optional)</label>
+          <input type="text" class="input" id="partner-phone-input" placeholder="e.g. 9876543210" style="width:100%" />
+        </div>
+      </div>
+    `;
+
+    showModal({
+      title: `Add ${isPharm ? 'Pharmacy' : 'Diagnostic Center'}`,
+      bodyHtml,
+      confirmText: 'Add Partner',
+      cancelText: 'Cancel',
+      onConfirm: (overlay) => {
+        const name = overlay.querySelector('#partner-name-input').value.trim();
+        if (!name) {
+          toast.error('Name is required.');
+          return false;
+        }
+        const address = overlay.querySelector('#partner-address-input').value.trim();
+        const phone = overlay.querySelector('#partner-phone-input').value.trim();
+
+        // If it's the first one, make it default
+        const count = queryOne(`SELECT COUNT(*) as c FROM ${table}`).c;
+        const isDefault = count === 0 ? 1 : 0;
+        
+        run(`INSERT INTO ${table} (name, address, phone, is_default) VALUES (?, ?, ?, ?)`, [name, address, phone, isDefault]);
+        toast.success(`${typeLabel} added.`);
+        navigate('/settings?tab=partners');
+      }
+    });
   };
 
   window.__deletePartner = (table, id) => {
