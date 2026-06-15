@@ -101,7 +101,7 @@ export function renderSettings(container) {
             </div>
             <div class="form-group mb-4">
               <label class="form-label">Contact Phone <span class="req">*</span></label>
-              <input class="input" id="s-clinic_phone" type="tel" value="${e(s.clinic_phone)}" placeholder="9876543210" maxlength="15" />
+              <input class="input" id="s-clinic_phone" type="text" value="${e(s.clinic_phone)}" placeholder="Clinic phone number" />
             </div>
             <div class="form-group mb-4">
               <label class="form-label">Print Footer Message</label>

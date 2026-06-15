@@ -70,7 +70,7 @@ export async function renderSetup(container) {
             </div>
             <div class="form-group">
               <label class="form-label">Phone <span class="req">*</span></label>
-              <input class="input" id="clinic_phone" type="tel" placeholder="9876543210" value="${existing?.clinic_phone || ''}" maxlength="10" />
+              <input class="input" id="clinic_phone" type="text" placeholder="Clinic phone number" value="${existing?.clinic_phone || ''}" />
             </div>
           </div>
           ` : ''}
