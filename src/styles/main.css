@@ -356,6 +356,10 @@ a:hover { color: var(--teal-300); }
   transition: all var(--t-fast) var(--ease-out);
   outline: none; appearance: none;
 }
+select option, .select option {
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
 .input::placeholder, .textarea::placeholder { color: var(--text-tertiary); }
 .input:focus, .select:focus, .textarea:focus {
   border-color: var(--teal-600);
