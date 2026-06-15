@@ -69,7 +69,7 @@ export function _executePrint(visitId, pharmacyId = null, diagCenterId = null) {
         
         ${partner ? `
           <div class="print-footer-partner">
-            <strong>Recommended Center:</strong> ${partner.name} ${partner.phone ? `| 📞 ${partner.phone}` : ''} ${partner.address ? `| 📍 ${partner.address}` : ''}
+            <strong>Please visit:</strong> ${partner.name} ${partner.phone ? `| 📞 ${partner.phone}` : ''} ${partner.address ? `| 📍 ${partner.address}` : ''}
           </div>
         ` : ''}
         
