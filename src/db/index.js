@@ -69,12 +69,18 @@ function runMigrations(db) {
   // Add first_name and last_name if missing (schema update)
   try {
     db.exec("ALTER TABLE settings ADD COLUMN doctor_first_name TEXT DEFAULT ''");
+  } catch (e) {}
+  try {
     db.exec("ALTER TABLE settings ADD COLUMN doctor_last_name TEXT DEFAULT ''");
+  } catch (e) {}
+  try {
     db.exec("UPDATE settings SET doctor_first_name = doctor_name WHERE doctor_first_name = ''");
-  } catch (e) { /* ignores if columns already exist */ }
+  } catch (e) {}
 
   try {
     db.exec("ALTER TABLE visits ADD COLUMN fee INTEGER DEFAULT 0");
+  } catch (e) {}
+  try {
     db.exec("ALTER TABLE visits ADD COLUMN attachment_idb_key TEXT");
   } catch (e) {}
 
@@ -84,8 +90,20 @@ function runMigrations(db) {
   while (version < SCHEMA_VERSION) {
     version++;
     if (MIGRATIONS[version]) {
-      db.run(MIGRATIONS[version]);
-      db.run(`UPDATE settings SET schema_version=${version} WHERE id=1`);
+      const statements = MIGRATIONS[version]
+        .split(';')
+        .map(s => s.trim())
+        .filter(Boolean);
+      for (const sql of statements) {
+        try {
+          db.run(sql);
+        } catch (e) {
+          console.warn(`Migration statement warning (ignored): ${sql}`, e);
+        }
+      }
+      try {
+        db.run(`UPDATE settings SET schema_version=${version} WHERE id=1`);
+      } catch (e) {}
     }
   }
 }
