@@ -1,5 +1,7 @@
 # DocRx — Offline-First Patient Records System
 
+🔗 **Live Deployment:** [https://ravitejbondada.github.io/DocRx/](https://ravitejbondada.github.io/DocRx/)
+
 DocRx is a completely offline, secure, and privacy-focused Electronic Medical Records (EMR) application built specifically for solo General Practitioners (GPs). 
 
 Because DocRx operates entirely within the browser and stores data securely on the local device, **no patient data is ever transmitted to a third-party server**.
