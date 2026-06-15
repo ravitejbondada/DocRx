@@ -11,6 +11,8 @@ PRAGMA foreign_keys=ON;
 -- ── settings (single-row config) ────────────────────────────
 CREATE TABLE IF NOT EXISTS settings (
   id                    INTEGER PRIMARY KEY CHECK (id = 1),
+  doctor_first_name     TEXT    NOT NULL DEFAULT '',
+  doctor_last_name      TEXT    NOT NULL DEFAULT '',
   doctor_name           TEXT    NOT NULL DEFAULT '',
   doctor_qualification  TEXT,
   doctor_reg_number     TEXT    NOT NULL DEFAULT '',
