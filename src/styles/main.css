@@ -263,7 +263,6 @@ a:hover { color: var(--teal-300); }
   border-radius: var(--radius-xl);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  overflow: hidden;
 }
 .card-p { padding: 20px; }
 .card-sm { border-radius: var(--radius-lg); }
