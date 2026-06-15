@@ -135,7 +135,12 @@ export function renderSettings(container) {
                   <td>
                     <input type="radio" name="default_pharmacy" value="${p.id}" ${p.is_default ? 'checked' : ''} onchange="window.__setDefaultPartner('pharmacies', ${p.id})">
                   </td>
-                  <td><button class="btn btn-danger btn-sm" onclick="window.__deletePartner('pharmacies', ${p.id})">Delete</button></td>
+                  <td>
+                    <div style="display:flex; gap:8px;">
+                      <button class="btn btn-secondary btn-sm" onclick="window.__editPartner('pharmacies', ${p.id})">Edit</button>
+                      <button class="btn btn-danger btn-sm" onclick="window.__deletePartner('pharmacies', ${p.id})">Delete</button>
+                    </div>
+                  </td>
                 </tr>
               `).join('')}
             </tbody>
@@ -160,7 +165,12 @@ export function renderSettings(container) {
                   <td>
                     <input type="radio" name="default_diag" value="${p.id}" ${p.is_default ? 'checked' : ''} onchange="window.__setDefaultPartner('diagnostic_centers', ${p.id})">
                   </td>
-                  <td><button class="btn btn-danger btn-sm" onclick="window.__deletePartner('diagnostic_centers', ${p.id})">Delete</button></td>
+                  <td>
+                    <div style="display:flex; gap:8px;">
+                      <button class="btn btn-secondary btn-sm" onclick="window.__editPartner('diagnostic_centers', ${p.id})">Edit</button>
+                      <button class="btn btn-danger btn-sm" onclick="window.__deletePartner('diagnostic_centers', ${p.id})">Delete</button>
+                    </div>
+                  </td>
                 </tr>
               `).join('')}
             </tbody>
@@ -383,6 +393,50 @@ export function renderSettings(container) {
     if (!confirm('Are you sure you want to delete this partner?')) return;
     run(`DELETE FROM ${table} WHERE id=?`, [id]);
     navigate('/settings?tab=partners');
+  };
+
+  window.__editPartner = (table, id) => {
+    const isPharm = table === 'pharmacies';
+    const typeLabel = isPharm ? 'Medical Shop (Pharmacy)' : 'Diagnostic Center';
+    const partner = queryOne(`SELECT * FROM ${table} WHERE id=?`, [id]);
+    if (!partner) return;
+
+    const bodyHtml = `
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="form-group">
+          <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Name <span style="color:var(--danger)">*</span></label>
+          <input type="text" class="input" id="partner-name-input" value="${e(partner.name)}" style="width:100%" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Address / Location (Optional)</label>
+          <input type="text" class="input" id="partner-address-input" value="${e(partner.address)}" style="width:100%" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Phone (Optional)</label>
+          <input type="text" class="input" id="partner-phone-input" value="${e(partner.phone)}" style="width:100%" />
+        </div>
+      </div>
+    `;
+
+    showModal({
+      title: `Edit ${isPharm ? 'Pharmacy' : 'Diagnostic Center'}`,
+      bodyHtml,
+      confirmText: 'Save Changes',
+      cancelText: 'Cancel',
+      onConfirm: (overlay) => {
+        const name = overlay.querySelector('#partner-name-input').value.trim();
+        if (!name) {
+          toast.error('Name is required.');
+          return false;
+        }
+        const address = overlay.querySelector('#partner-address-input').value.trim();
+        const phone = overlay.querySelector('#partner-phone-input').value.trim();
+
+        run(`UPDATE ${table} SET name=?, address=?, phone=? WHERE id=?`, [name, address, phone, id]);
+        toast.success(`${typeLabel} updated.`);
+        navigate('/settings?tab=partners');
+      }
+    });
   };
 
   window.__setDefaultPartner = (table, id) => {
