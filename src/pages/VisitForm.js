@@ -625,9 +625,9 @@ export function renderVisitForm(container, params) {
         // Save tests
         testRowData.forEach(t => {
           if (!t.test_name) return;
-          run(`INSERT INTO diagnostic_tests (visit_id, test_name, instructions, urgency, idb_file_key)
-               VALUES (?,?,?,?,?)`,
-            [vId, t.test_name, t.instructions||null, t.urgency||'Routine', t.idb_file_key||null]);
+          run(`INSERT INTO diagnostic_tests (visit_id, test_name, instructions, urgency)
+               VALUES (?,?,?,?)`,
+            [vId, t.test_name, t.instructions||null, t.urgency||'Routine']);
           run(`UPDATE test_catalog SET use_count=use_count+1 WHERE name=?`, [t.test_name]);
           run(`INSERT OR IGNORE INTO test_catalog (name) VALUES (?)`, [t.test_name]);
         });
