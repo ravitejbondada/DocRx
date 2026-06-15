@@ -50,28 +50,36 @@ export function _executePrint(visitId, pharmacyId = null, diagCenterId = null) {
   `;
 
   const footerHtml = (isPrescriptionPage, partner) => `
-    <!-- Footer -->
-    <div class="print-footer">
-      <div class="followup-note">
-        ${isPrescriptionPage && visit.follow_up_date ? `<strong>Follow-up:</strong> ${formatDate(visit.follow_up_date)}` : ''}
-        ${isPrescriptionPage && visit.clinical_notes ? `<div style="margin-top:6px;font-size:8.5pt;color:#475569">${visit.clinical_notes}</div>` : ''}
+    <!-- Footer Container -->
+    <div class="print-footer-container">
+      <div class="print-footer-above">
+        <div class="followup-note">
+          ${isPrescriptionPage && visit.follow_up_date ? `<strong>Follow-up:</strong> ${formatDate(visit.follow_up_date)}` : ''}
+          ${isPrescriptionPage && visit.clinical_notes ? `<div style="margin-top:6px;font-size:8.5pt;color:#475569">${visit.clinical_notes}</div>` : ''}
+        </div>
+        <div class="signature-line">
+          <div class="signature-dash"></div>
+          <span class="signature-label">Dr. ${settings.doctor_name || ''}</span>
+          <span class="signature-label" style="font-size:7.5pt;margin-top:2px">${settings.doctor_qualification || ''}</span>
+        </div>
       </div>
-      <div class="signature-line">
-        <div class="signature-dash"></div>
-        <span class="signature-label">Dr. ${settings.doctor_name || ''}</span>
-        <span class="signature-label" style="font-size:7.5pt;margin-top:2px">${settings.doctor_qualification || ''}</span>
-      </div>
+      
+      ${(partner || settings.print_footer_message) ? `
+        <div class="print-footer-divider"></div>
+        
+        ${partner ? `
+          <div class="print-footer-partner">
+            <strong>Recommended Center:</strong> ${partner.name} ${partner.phone ? `| 📞 ${partner.phone}` : ''} ${partner.address ? `| 📍 ${partner.address}` : ''}
+          </div>
+        ` : ''}
+        
+        ${settings.print_footer_message ? `
+          <div class="print-footer-msg">
+            ${settings.print_footer_message}
+          </div>
+        ` : ''}
+      ` : ''}
     </div>
-    ${partner ? `
-      <div style="margin-top:12px;padding-top:12px;border-top:1px dashed #cbd5e1;font-size:9pt;text-align:center;color:#334155;">
-        <strong>Recommended Center:</strong> ${partner.name} ${partner.phone ? `| 📞 ${partner.phone}` : ''} ${partner.address ? `| 📍 ${partner.address}` : ''}
-      </div>
-    ` : ''}
-    ${settings.print_footer_message ? `
-      <div style="margin-top:8px;font-size:9.5pt;text-align:center;color:#64748b;font-style:italic;font-weight:500;">
-        ${settings.print_footer_message}
-      </div>
-    ` : ''}
   `;
 
   const html = `<!DOCTYPE html>
@@ -149,11 +157,15 @@ export function _executePrint(visitId, pharmacyId = null, diagCenterId = null) {
     .test-urgent { font-size: 7.5pt; background: #fee2e2; color: #b91c1c; padding: 1px 6px; border-radius: 10px; }
 
     /* Footer - pushed to bottom via flexbox */
-    .print-footer { margin-top: auto; border-top: 1px solid #e2e8f0; padding-top: 16px; display: flex; justify-content: space-between; align-items: flex-end; }
+    .print-footer-container { margin-top: auto; width: 100%; padding-top: 12px; }
+    .print-footer-above { display: flex; justify-content: space-between; align-items: flex-end; }
     .followup-note { font-size: 9pt; }
     .signature-line { text-align: right; }
     .signature-dash { border-top: 1.5px solid #000; width: 140px; display: inline-block; margin-bottom: 4px; }
     .signature-label { font-size: 8.5pt; color: #475569; display: block; }
+    .print-footer-divider { border-top: 1px solid #e2e8f0; margin: 10px 0; }
+    .print-footer-partner { font-size: 9pt; text-align: center; color: #334155; margin-bottom: 6px; }
+    .print-footer-msg { font-size: 9.5pt; text-align: center; color: #64748b; font-style: italic; font-weight: 500; }
 
     /* Allergies alert */
     .allergy-alert { background: #fff7ed; border: 1.5px solid #fb923c; border-radius: 5px; padding: 6px 10px; margin-bottom: 12px; font-size: 9pt; color: #9a3412; }
