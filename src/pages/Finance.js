@@ -56,8 +56,8 @@ export function renderFinance(container) {
     `, params);
 
     let totalRev = 0;
-    let newCount = 0;
-    let existCount = 0;
+    const uniquePatientCodes = new Set();
+    const newPatients = new Set();
 
     // Group by date
     const dailyMap = {}; // { 'YYYY-MM-DD': { rev: 0, patients: [] } }
@@ -65,8 +65,11 @@ export function renderFinance(container) {
     rows.forEach(r => {
       const fee = r.fee || 0;
       totalRev += fee;
-      if (r.visit_type === 'New') newCount++;
-      else existCount++;
+      
+      uniquePatientCodes.add(r.patient_code);
+      if (r.visit_type === 'New') {
+        newPatients.add(r.patient_code);
+      }
 
       if (!dailyMap[r.visit_date]) {
         dailyMap[r.visit_date] = { rev: 0, patients: [] };
@@ -75,7 +78,9 @@ export function renderFinance(container) {
       dailyMap[r.visit_date].patients.push(r);
     });
 
-    const totalCount = rows.length;
+    const totalCount = uniquePatientCodes.size;
+    const newCount = newPatients.size;
+    const existCount = totalCount - newCount;
     const sortedDates = Object.keys(dailyMap).sort((a, b) => b.localeCompare(a));
 
     container.innerHTML = `
