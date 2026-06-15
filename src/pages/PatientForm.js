@@ -56,7 +56,7 @@ export function renderPatientForm(container, params = {}) {
             </div>
             <div class="form-group">
               <label class="form-label">Phone <span class="req">*</span></label>
-              <input class="input" id="phone" type="tel" placeholder="10-digit mobile number" maxlength="10" value="${e(existing?.phone)}" required />
+              <input class="input" id="phone" type="text" placeholder="Mobile or landline number" value="${e(existing?.phone)}" required />
             </div>
             <div class="form-group">
               <label class="form-label">Date of Birth</label>
@@ -202,7 +202,7 @@ export function renderPatientForm(container, params = {}) {
     const gender    = getValue('#gender');
 
     if (!full_name) { toast.error('Full name is required.'); return; }
-    if (!/^\d{10}$/.test(phone)) { toast.error('Enter a valid 10-digit phone number.'); return; }
+    if (!phone) { toast.error('Phone number is required.'); return; }
     if (!age || age < 0 || age > 120) { toast.error('Please enter a valid age.'); return; }
     if (!gender) { toast.error('Please select a gender.'); return; }
 
