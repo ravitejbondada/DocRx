@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="DocRx — Offline-first patient records system for solo GP practice. Secure, fast, and private." />
+  <meta name="theme-color" content="#0f172a" />
+  <title>DocRx — Patient Records</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/styles/main.css" />
+</head>
+<body>
+  <div id="app">
+    <div class="splash-screen" id="splash">
+      <div class="splash-logo">
+        <svg width="56" height="56" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="56" height="56" rx="16" fill="url(#logo-grad)"/>
+          <path d="M18 28h20M28 18v20" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="28" cy="28" r="10" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
+          <defs>
+            <linearGradient id="logo-grad" x1="0" y1="0" x2="56" y2="56">
+              <stop offset="0%" stop-color="#0ea5e9"/>
+              <stop offset="100%" stop-color="#0891b2"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <span class="splash-title">DocRx</span>
+      </div>
+      <div class="splash-spinner"></div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

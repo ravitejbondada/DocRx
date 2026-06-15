@@ -1,0 +1,295 @@
+// ============================================================
+// DocRx — Print Engine (A4 Prescription + Patient Summary)
+// ============================================================
+import { queryOne, queryAll } from '../db/index.js';
+
+export function _executePrint(visitId, pharmacyId = null, diagCenterId = null) {
+  const visit   = queryOne('SELECT * FROM visits WHERE id=?', [visitId]);
+  const patient = queryOne('SELECT * FROM patients WHERE id=?', [visit.patient_id]);
+  const settings= queryOne('SELECT * FROM settings WHERE id=1') || {};
+  const rxItems = queryAll('SELECT * FROM prescriptions WHERE visit_id=? ORDER BY sort_order ASC', [visitId]);
+  const tests   = queryAll('SELECT * FROM diagnostic_tests WHERE visit_id=?', [visitId]);
+
+  let pharmacy = null;
+  if (pharmacyId) pharmacy = queryOne('SELECT * FROM pharmacies WHERE id=?', [pharmacyId]);
+  
+  let diagCenter = null;
+  if (diagCenterId) diagCenter = queryOne('SELECT * FROM diagnostic_centers WHERE id=?', [diagCenterId]);
+
+  const age = patient.dob ? calcAge(patient.dob) : patient.age;
+
+  const headerHtml = `
+    <div class="letterhead">
+      <div class="lh-top">
+        <div>
+          <div class="doctor-name">Dr. ${settings.doctor_name || ''}</div>
+          <div class="doctor-qual">${settings.doctor_qualification || ''}</div>
+          <div class="doctor-reg">Reg. No: ${settings.doctor_reg_number || ''}</div>
+        </div>
+        <div class="clinic-info">
+          <div class="clinic-name">${settings.clinic_name || ''}</div>
+          <div class="clinic-addr">${(settings.clinic_address || '').replace(/\\n/g, '<br/>')}</div>
+          <div class="clinic-phone">📞 ${settings.clinic_phone || ''}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Patient Bar -->
+    <div class="patient-bar">
+      <div class="pb-item"><label>Patient</label><span>${patient.full_name}</span></div>
+      <div class="pb-item"><label>ID</label><span class="pb-code">${patient.patient_code}</span></div>
+      <div class="pb-item"><label>Age / Gender</label><span>${age}y / ${patient.gender === 'M' ? 'Male' : patient.gender === 'F' ? 'Female' : 'Other'}</span></div>
+      <div class="pb-item"><label>Date</label><span>${formatDate(visit.visit_date)}</span></div>
+      ${patient.blood_group ? `<div class="pb-item"><label>Blood Group</label><span>${patient.blood_group}</span></div>` : ''}
+    </div>
+
+    ${patient.allergies ? `
+    <div class="allergy-alert">
+      <strong>⚠ Allergy Alert:</strong> ${patient.allergies}
+    </div>` : ''}
+  `;
+
+  const footerHtml = (isPrescriptionPage, partner) => `
+    <!-- Footer -->
+    <div class="print-footer">
+      <div class="followup-note">
+        ${isPrescriptionPage && visit.follow_up_date ? `<strong>Follow-up:</strong> ${formatDate(visit.follow_up_date)}` : ''}
+        ${isPrescriptionPage && visit.clinical_notes ? `<div style="margin-top:6px;font-size:8.5pt;color:#475569">${visit.clinical_notes}</div>` : ''}
+      </div>
+      <div class="signature-line">
+        <div class="signature-dash"></div>
+        <span class="signature-label">Dr. ${settings.doctor_name || ''}</span>
+        <span class="signature-label" style="font-size:7.5pt;margin-top:2px">${settings.doctor_qualification || ''}</span>
+      </div>
+    </div>
+    ${partner ? `
+      <div style="margin-top:12px;padding-top:12px;border-top:1px dashed #cbd5e1;font-size:9pt;text-align:center;color:#334155;">
+        <strong>Recommended Center:</strong> ${partner.name} ${partner.phone ? `| 📞 ${partner.phone}` : ''} ${partner.address ? `| 📍 ${partner.address}` : ''}
+      </div>
+    ` : ''}
+    ${settings.print_footer_message ? `
+      <div style="margin-top:8px;font-size:9.5pt;text-align:center;color:#64748b;font-style:italic;font-weight:500;">
+        ${settings.print_footer_message}
+      </div>
+    ` : ''}
+  `;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Prescription — ${patient.full_name}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    * { box-sizing: border-box; margin:0; padding:0; }
+    /* Setting margin: 0 removes browser default headers/footers in Chrome/Edge */
+    @page { size: A4 portrait; margin: 0; }
+    html, body {
+      font-family: 'Inter', Arial, sans-serif;
+      color: #000; background: #fff; font-size: 11pt;
+    }
+    
+    .print-page {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 15mm;
+      display: flex;
+      flex-direction: column;
+      page-break-after: always;
+    }
+    
+    .print-page:last-child {
+      page-break-after: auto;
+    }
+
+    /* Letterhead */
+    .letterhead { border-bottom: 2.5px solid #0891b2; padding-bottom: 12px; margin-bottom: 14px; }
+    .lh-top { display: flex; justify-content: space-between; align-items: flex-start; }
+    .doctor-name { font-size: 16pt; font-weight: 700; color: #0f172a; letter-spacing: -0.01em; }
+    .doctor-qual { font-size: 9.5pt; color: #475569; margin-top: 2px; }
+    .doctor-reg  { font-size: 8pt;   color: #64748b; margin-top: 2px; }
+    .clinic-info { text-align: right; }
+    .clinic-name { font-size: 11pt; font-weight: 600; color: #0f172a; }
+    .clinic-addr { font-size: 8.5pt; color: #475569; margin-top: 3px; line-height: 1.4; max-width: 180px; }
+    .clinic-phone{ font-size: 8.5pt; color: #0891b2; margin-top: 3px; }
+
+    /* Patient bar */
+    .patient-bar {
+      background: #f8fafc; border-radius: 6px; padding: 10px 14px;
+      display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 14px;
+      border: 1px solid #e2e8f0;
+    }
+    .pb-item label { font-size: 7.5pt; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; }
+    .pb-item span  { font-size: 10pt; font-weight: 600; color: #0f172a; }
+    .pb-code { font-family: 'Courier New', monospace; font-size: 9pt; font-weight: 700; color: #0891b2; }
+
+    /* Rx Symbol & table */
+    .rx-symbol { font-size: 28pt; font-weight: 800; color: #0891b2; font-style: italic; margin: 12px 0 8px; line-height: 1; }
+    .medicine-print-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+    .medicine-print-table th {
+      background: #f1f5f9; padding: 7px 10px; text-align: left;
+      font-size: 8pt; font-weight: 700; color: #64748b; text-transform: uppercase;
+      border-bottom: 1.5px solid #e2e8f0;
+    }
+    .medicine-print-table td {
+      padding: 8px 10px; font-size: 10pt; vertical-align: top;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .medicine-print-table .med-num { color: #94a3b8; font-size: 8.5pt; min-width: 20px; }
+    .medicine-print-table .med-name { font-weight: 600; }
+    .medicine-print-table .badge { font-size: 7.5pt; background: #e0f2fe; color: #0369a1; padding: 1px 6px; border-radius: 10px; }
+
+    /* Tests */
+    .tests-section { margin-top: 12px; }
+    .tests-title { font-size: 12pt; font-weight: 700; color: #0891b2; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid #0891b2; padding-bottom: 6px; margin-bottom: 14px; margin-top: 10px; }
+    .test-row { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 5px; }
+    .test-bullet { color: #0891b2; }
+    .test-name { font-weight: 600; font-size: 10pt; }
+    .test-instr { font-size: 8.5pt; color: #64748b; }
+    .test-urgent { font-size: 7.5pt; background: #fee2e2; color: #b91c1c; padding: 1px 6px; border-radius: 10px; }
+
+    /* Footer - pushed to bottom via flexbox */
+    .print-footer { margin-top: auto; border-top: 1px solid #e2e8f0; padding-top: 16px; display: flex; justify-content: space-between; align-items: flex-end; }
+    .followup-note { font-size: 9pt; }
+    .signature-line { text-align: right; }
+    .signature-dash { border-top: 1.5px solid #000; width: 140px; display: inline-block; margin-bottom: 4px; }
+    .signature-label { font-size: 8.5pt; color: #475569; display: block; }
+
+    /* Allergies alert */
+    .allergy-alert { background: #fff7ed; border: 1.5px solid #fb923c; border-radius: 5px; padding: 6px 10px; margin-bottom: 12px; font-size: 9pt; color: #9a3412; }
+    .allergy-alert strong { color: #c2410c; }
+  </style>
+</head>
+<body>
+
+  <!-- PAGE 1: Prescription -->
+  <div class="print-page">
+    ${headerHtml}
+    
+    <!-- Rx Section -->
+    ${rxItems.length ? `
+    <div class="rx-symbol">℞</div>
+    <table class="medicine-print-table">
+      <thead>
+        <tr>
+          <th style="width:24px">#</th>
+          <th>Medicine</th>
+          <th>Dosage</th>
+          <th>Frequency</th>
+          <th>Duration</th>
+          <th>Instructions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rxItems.map((r, i) => `
+          <tr>
+            <td class="med-num">${i + 1}</td>
+            <td class="med-name">${r.medicine_name}</td>
+            <td>${r.dosage ? `<span class="badge">${r.dosage}</span>` : '—'}</td>
+            <td>${r.frequency || '—'}</td>
+            <td>${r.duration || '—'}</td>
+            <td>${r.instructions || ''}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>` : '<p style="color:#64748b;font-style:italic;margin:12px 0">No medications prescribed.</p>'}
+
+    ${footerHtml(true, pharmacy)}
+  </div>
+
+  <!-- PAGE 2: Investigations -->
+  ${tests.length ? `
+  <div class="print-page">
+    ${headerHtml}
+
+    <div class="tests-section">
+      <div class="tests-title">Investigations Ordered</div>
+      ${tests.map(t => `
+        <div class="test-row">
+          <span class="test-bullet">◉</span>
+          <div>
+            <span class="test-name">${t.test_name}</span>
+            ${t.urgency === 'Urgent' ? '<span class="test-urgent">URGENT</span>' : ''}
+            ${t.instructions ? `<div class="test-instr">${t.instructions}</div>` : ''}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    ${footerHtml(false, diagCenter)}
+  </div>` : ''}
+
+</body>
+</html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); win.close(); }, 800);
+}
+
+// Expose globally for onclick
+window.__printVisit = (visitId) => {
+  const pharmacies = queryAll('SELECT * FROM pharmacies ORDER BY name ASC');
+  const diagCenters = queryAll('SELECT * FROM diagnostic_centers ORDER BY name ASC');
+  
+  if (pharmacies.length === 0 && diagCenters.length === 0) {
+    return _executePrint(visitId, null, null);
+  }
+
+  const defaultPharmId = pharmacies.find(p => p.is_default)?.id || '';
+  const defaultDiagId = diagCenters.find(d => d.is_default)?.id || '';
+
+  const modal = document.createElement('div');
+  modal.className = 'modal open';
+  modal.innerHTML = `
+    <div class="modal-box" style="max-width: 450px;">
+      <h3 class="font-bold text-lg mb-4">Print Options</h3>
+      
+      ${pharmacies.length ? `
+      <div class="form-group mb-4">
+        <label class="form-label">Medical Shop (Pharmacy)</label>
+        <select class="input" id="print-pharmacy-select">
+          <option value="">-- Do not recommend --</option>
+          ${pharmacies.map(p => `<option value="${p.id}" ${p.id === defaultPharmId ? 'selected' : ''}>${p.name}</option>`).join('')}
+        </select>
+      </div>` : ''}
+
+      ${diagCenters.length ? `
+      <div class="form-group mb-4">
+        <label class="form-label">Diagnostic Center</label>
+        <select class="input" id="print-diag-select">
+          <option value="">-- Do not recommend --</option>
+          ${diagCenters.map(p => `<option value="${p.id}" ${p.id === defaultDiagId ? 'selected' : ''}>${p.name}</option>`).join('')}
+        </select>
+      </div>` : ''}
+
+      <div class="modal-action">
+        <button class="btn btn-ghost" id="print-cancel-btn">Cancel</button>
+        <button class="btn btn-primary" id="print-confirm-btn">Print Now</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  modal.querySelector('#print-cancel-btn').onclick = () => {
+    modal.remove();
+  };
+
+  modal.querySelector('#print-confirm-btn').onclick = () => {
+    const pharmId = modal.querySelector('#print-pharmacy-select')?.value || null;
+    const diagId = modal.querySelector('#print-diag-select')?.value || null;
+    modal.remove();
+    _executePrint(visitId, pharmId, diagId);
+  };
+};
+
+function calcAge(dob) {
+  return Math.floor((Date.now() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000));
+}
+function formatDate(d) {
+  if (!d) return '';
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+}

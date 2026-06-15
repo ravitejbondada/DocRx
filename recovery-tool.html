@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DocRx — Emergency Recovery Tool</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f172a; color: #f1f5f9;
+      min-height: 100vh; display: flex;
+      align-items: center; justify-content: center; padding: 24px;
+    }
+    .card {
+      background: #1e293b; border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px; padding: 36px; width: 100%; max-width: 420px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    h1 { font-size: 1.4rem; font-weight: 800; margin-bottom: 6px;
+         background: linear-gradient(135deg,#38bdf8,#22d3ee);
+         -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    p  { color: #94a3b8; font-size: 0.875rem; line-height: 1.6; margin-bottom: 20px; }
+    label { display: block; font-size: 0.75rem; font-weight: 700; color: #94a3b8;
+            text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+    input {
+      width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px; padding: 11px 14px; color: #f1f5f9;
+      font-family: 'Courier New', monospace; font-size: 1.1rem; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      outline: none; margin-bottom: 16px; transition: border-color 0.2s;
+    }
+    input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14,165,233,0.15); }
+    button {
+      width: 100%; padding: 12px; border: none; border-radius: 10px;
+      background: linear-gradient(135deg, #0ea5e9, #0891b2);
+      color: white; font-size: 1rem; font-weight: 700; cursor: pointer;
+      box-shadow: 0 4px 14px rgba(14,165,233,0.35); transition: all 0.15s;
+    }
+    button:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(14,165,233,0.45); }
+    .result {
+      margin-top: 20px; text-align: center; padding: 20px;
+      background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.25);
+      border-radius: 12px; display: none;
+    }
+    .result-label { font-size: 0.7rem; font-weight: 700; color: #94a3b8;
+                    text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+    .result-code  { font-family: 'Courier New', monospace; font-size: 2rem; font-weight: 800;
+                    color: #22d3ee; letter-spacing: 0.12em; }
+    .warning {
+      background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2);
+      border-radius: 10px; padding: 12px 16px; font-size: 0.8rem;
+      color: #fca5a5; margin-top: 20px; line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>DocRx Recovery Tool</h1>
+    <p>Enter the 8-character challenge code displayed on the doctor's login screen to generate a one-time response code.</p>
+
+    <label for="challenge">Challenge Code</label>
+    <input type="text" id="challenge" placeholder="DR-XXXX-XX" maxlength="12" oninput="this.value=this.value.toUpperCase()" />
+
+    <button onclick="generate()">Generate Response Code</button>
+
+    <div class="result" id="result">
+      <div class="result-label">Response Code (valid today only)</div>
+      <div class="result-code" id="response-code"></div>
+    </div>
+
+    <div class="warning">
+      ⚠ <strong>Keep this file private.</strong> It contains the master key for emergency recovery. Do not share it with anyone.
+    </div>
+  </div>
+
+  <script>
+    // Master key — matches the one in src/auth/crypto.js verifyResponse()
+    const MASTER_KEY = 'DOCRX_RECOVERY_2026';
+
+    async function generate() {
+      const challenge = document.getElementById('challenge').value.trim().toUpperCase();
+      if (challenge.length < 6) { alert('Please enter a valid challenge code.'); return; }
+
+      const enc  = new TextEncoder();
+      const data = challenge + MASTER_KEY;
+      const hash = await crypto.subtle.digest('SHA-256', enc.encode(data));
+      const hex  = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+      const code = hex.slice(0, 8).toUpperCase();
+
+      document.getElementById('response-code').textContent = code;
+      document.getElementById('result').style.display = 'block';
+    }
+
+    document.getElementById('challenge').addEventListener('keydown', e => {
+      if (e.key === 'Enter') generate();
+    });
+  </script>
+</body>
+</html>
