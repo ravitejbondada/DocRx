@@ -23,7 +23,7 @@ export function _executePrint(visitId, pharmacyId = null, diagCenterId = null) {
     <div class="letterhead">
       <div class="lh-top">
         <div>
-          <div class="doctor-name">Dr. ${settings.doctor_name || ''}</div>
+          <div class="doctor-name">${settings.doctor_name || ''}</div>
           <div class="doctor-qual">${settings.doctor_qualification || ''}</div>
           <div class="doctor-reg">Reg. No: ${settings.doctor_reg_number || ''}</div>
         </div>
@@ -60,8 +60,7 @@ export function _executePrint(visitId, pharmacyId = null, diagCenterId = null) {
         </div>
         <div class="signature-line">
           <div class="signature-dash"></div>
-          <span class="signature-label">Dr. ${settings.doctor_name || ''}</span>
-          <span class="signature-label" style="font-size:7.5pt;margin-top:2px">${settings.doctor_qualification || ''}</span>
+          <span class="signature-label">${settings.doctor_name || ''}</span>
         </div>
       </div>
       

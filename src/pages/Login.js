@@ -41,7 +41,7 @@ export async function renderLogin(container) {
         ${settings?.doctor_name ? `
           <div style="margin-bottom:24px">
             <h2 style="font-size:1.2rem">Welcome back</h2>
-            <p class="text-muted text-sm mt-1">Dr. ${settings.doctor_name}</p>
+            <p class="text-muted text-sm mt-1">${settings.doctor_name}</p>
           </div>
         ` : ''}
 
@@ -155,7 +155,7 @@ export async function renderLogin(container) {
       const ok = await verifyPassword(pw, settings.password_salt, settings.password_hash);
       if (ok) {
         setSession();
-        toast.success('Welcome back, Dr. ' + (settings.doctor_name || ''));
+        toast.success('Welcome back, ' + (settings.doctor_name || ''));
         navigate('/dashboard', true);
       } else {
         attempts++;
