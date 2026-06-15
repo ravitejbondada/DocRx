@@ -17,7 +17,7 @@ async function loadSQLjs() {
   const initSqlJs = sqlModule.default ?? sqlModule;
   SQL = await initSqlJs({
     // WASM file is copied to /public/sql-wasm.wasm at build time
-    locateFile: () => '/sql-wasm.wasm',
+    locateFile: () => `${import.meta.env.BASE_URL}sql-wasm.wasm`,
   });
   return SQL;
 }
