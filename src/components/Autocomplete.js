@@ -42,8 +42,10 @@ export function createAutocomplete({ input, fetchFn, onSelect, minChars = 2 }) {
     results.forEach((item, i) => {
       const el = document.createElement('div');
       el.className = 'autocomplete-item';
+      const parts = input.value.split(',');
+      const lastPart = parts[parts.length - 1].trim();
       el.innerHTML = `
-        <span>${highlight(item.label, input.value)}</span>
+        <span>${highlight(item.label, lastPart)}</span>
         ${item.sublabel ? `<span class="autocomplete-item-meta">${item.sublabel}</span>` : ''}
       `;
       el.addEventListener('mousedown', (e) => {
@@ -64,8 +66,13 @@ export function createAutocomplete({ input, fetchFn, onSelect, minChars = 2 }) {
 
   function select(i) {
     if (items[i]) {
-      input.value = items[i].label;
-      onSelect(items[i]);
+      const originalValue = input.value;
+      const customValue = onSelect(items[i], originalValue);
+      if (customValue !== undefined) {
+        input.value = customValue;
+      } else {
+        input.value = items[i].label;
+      }
       close();
     }
   }

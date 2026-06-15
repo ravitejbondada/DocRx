@@ -369,14 +369,21 @@ export function renderVisitForm(container, params) {
   if (diagInput && !isLocked) {
     createAutocomplete({
       input: diagInput,
-      fetchFn: async (q) => {
+      fetchFn: async (val) => {
+        const parts = val.split(',');
+        const lastPart = parts[parts.length - 1].trim();
+        if (lastPart.length < 2) return [];
         const rows = queryAll(
           `SELECT name FROM diagnosis_suggestions WHERE name LIKE ? ORDER BY use_count DESC LIMIT 8`,
-          [`%${q}%`]
+          [`%${lastPart}%`]
         );
         return rows.map(r => ({ label: r.name, data: r }));
       },
-      onSelect: (item) => { diagInput.value = item.label; },
+      onSelect: (item, originalValue) => {
+        const parts = originalValue.split(',');
+        parts[parts.length - 1] = (parts.length > 1 ? ' ' : '') + item.label;
+        return parts.join(',') + ', ';
+      },
     });
   }
 
@@ -568,6 +575,9 @@ export function renderVisitForm(container, params) {
     const chief = getValue('#chief_complaint');
     if (!chief) { toast.error('Chief complaint is required.'); return; }
 
+    const rawDx = getValue('#diagnosis') || '';
+    const cleanedDx = rawDx.split(',').map(d => d.trim()).filter(Boolean).join(', ') || null;
+
     const w = parseFloat(getValue('#weight')) || null;
     const h = parseFloat(getValue('#height')) || null;
     const bmi = w && h ? parseFloat((w / Math.pow(h/100, 2)).toFixed(2)) : null;
@@ -580,7 +590,7 @@ export function renderVisitForm(container, params) {
         run(`UPDATE visits SET visit_date=?,chief_complaint=?,diagnosis=?,clinical_notes=?,
              bp=?,temperature=?,weight=?,height=?,bmi=?,spo2=?,pulse=?,visit_type=?,
              follow_up_date=?,fee=?,updated_at=datetime('now','localtime') WHERE id=?`,
-          [getValue('#visit_date'), chief, getValue('#diagnosis')||null, getValue('#clinical_notes')||null,
+          [getValue('#visit_date'), chief, cleanedDx, getValue('#clinical_notes')||null,
            getValue('#bp')||null, getValue('#temperature')||null, w, h, bmi,
            getValue('#spo2')||null, getValue('#pulse')||null, getValue('#visit_type'),
            getValue('#follow_up_date')||null, getValue('#fee') || 0, visitId]);
@@ -592,7 +602,7 @@ export function renderVisitForm(container, params) {
           `INSERT INTO visits (patient_id,visit_date,chief_complaint,diagnosis,clinical_notes,
            bp,temperature,weight,height,bmi,spo2,pulse,visit_type,follow_up_date,fee)
            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-          [patientId, getValue('#visit_date'), chief, getValue('#diagnosis')||null,
+          [patientId, getValue('#visit_date'), chief, cleanedDx,
            getValue('#clinical_notes')||null, getValue('#bp')||null,
            getValue('#temperature')||null, w, h, bmi,
            getValue('#spo2')||null, getValue('#pulse')||null, getValue('#visit_type'),
@@ -623,10 +633,12 @@ export function renderVisitForm(container, params) {
         });
 
         // Update diagnosis suggestions
-        const dx = getValue('#diagnosis');
-        if (dx) {
-          run(`INSERT OR IGNORE INTO diagnosis_suggestions (name) VALUES (?)`, [dx]);
-          run(`UPDATE diagnosis_suggestions SET use_count=use_count+1 WHERE name=?`, [dx]);
+        if (cleanedDx) {
+          const diagnoses = cleanedDx.split(',').map(d => d.trim()).filter(Boolean);
+          diagnoses.forEach(d => {
+            run(`INSERT OR IGNORE INTO diagnosis_suggestions (name) VALUES (?)`, [d]);
+            run(`UPDATE diagnosis_suggestions SET use_count=use_count+1 WHERE name=?`, [d]);
+          });
         }
 
         toast.success('Visit saved successfully.');
@@ -658,10 +670,12 @@ export function renderVisitForm(container, params) {
       });
 
       // Update diagnosis
-      const dx = getValue('#diagnosis');
-      if (dx) {
-        run(`INSERT OR IGNORE INTO diagnosis_suggestions (name) VALUES (?)`, [dx]);
-        run(`UPDATE diagnosis_suggestions SET use_count=use_count+1 WHERE name=?`, [dx]);
+      if (cleanedDx) {
+        const diagnoses = cleanedDx.split(',').map(d => d.trim()).filter(Boolean);
+        diagnoses.forEach(d => {
+          run(`INSERT OR IGNORE INTO diagnosis_suggestions (name) VALUES (?)`, [d]);
+          run(`UPDATE diagnosis_suggestions SET use_count=use_count+1 WHERE name=?`, [d]);
+        });
       }
 
       toast.success('Visit updated.');
