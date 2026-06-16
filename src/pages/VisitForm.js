@@ -20,7 +20,7 @@ export function renderVisitForm(container, params) {
   const existing = isEdit ? queryOne('SELECT * FROM visits WHERE id=? AND patient_id=? AND deleted=0', [visitId, patientId]) : null;
   const today    = new Date().toISOString().slice(0, 10);
   // Default to locked if editing a past visit, unless we are explicitly unlocking it
-  let isLocked = isEdit && !window.__visitUnlocked;
+  let isLocked = isEdit && existing && existing.visit_date < today && !window.__visitUnlocked;
 
   // Function to re-render when unlocked
   function renderInner() {

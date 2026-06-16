@@ -45,7 +45,10 @@ function getTableRows(db, tableName) {
  * 3. If exists, download cloud DB, merge, persist local, and upload merged DB.
  */
 export async function syncWithGoogleDrive(onStatusCallback) {
-  const status = (msg) => onStatusCallback?.(msg);
+  const status = (msg) => {
+    onStatusCallback?.(msg);
+    if (window.__updateSyncStatus) window.__updateSyncStatus(msg);
+  };
   const token = getSavedToken();
   if (!token) {
     status({ type: 'error', message: 'Google authentication required.' });

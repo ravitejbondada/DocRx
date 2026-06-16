@@ -244,7 +244,7 @@ export function renderSettings(container) {
           <div class="form-group mb-4">
             <label class="form-label">Google OAuth Client ID</label>
             <div class="flex gap-2">
-              <input type="text" class="input" id="google-client-id" placeholder="Paste your Google OAuth Client ID here..." value="${s.google_client_id || ''}" style="flex:1" />
+              <input type="text" class="input" id="google-client-id" placeholder="Paste your Google OAuth Client ID here..." value="${s.google_client_id || '219866394954-pg9187uvcq3gu0c4l51728m1u1hojt0c.apps.googleusercontent.com'}" style="flex:1" />
               <button class="btn btn-secondary" id="save-client-id-btn">Save ID</button>
             </div>
             <p class="text-xs text-muted mt-1">Configure this client ID in Google Cloud Console. Enable Javascript Origins: <code>${window.location.origin}</code></p>

@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS settings (
   password_hash         TEXT    NOT NULL DEFAULT '',
   password_salt         TEXT    NOT NULL DEFAULT '',
   print_footer_message  TEXT    NOT NULL DEFAULT 'Wishing you a swift and complete recovery. Please take your medications as prescribed.',
-  google_client_id      TEXT    NOT NULL DEFAULT '',
+  google_client_id      TEXT    NOT NULL DEFAULT '219866394954-pg9187uvcq3gu0c4l51728m1u1hojt0c.apps.googleusercontent.com',
   google_sync_enabled   INTEGER NOT NULL DEFAULT 0,
   last_sync_timestamp   TEXT
 );
@@ -189,8 +189,9 @@ export const MIGRATIONS = {
   `,
   3: `-- Handled in JS inside index.js due to UUID mapping requirements --`,
   4: `
-    ALTER TABLE settings ADD COLUMN google_client_id TEXT NOT NULL DEFAULT '';
+    ALTER TABLE settings ADD COLUMN google_client_id TEXT NOT NULL DEFAULT '219866394954-pg9187uvcq3gu0c4l51728m1u1hojt0c.apps.googleusercontent.com';
     ALTER TABLE settings ADD COLUMN google_sync_enabled INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE settings ADD COLUMN last_sync_timestamp TEXT;
+    UPDATE settings SET google_client_id = '219866394954-pg9187uvcq3gu0c4l51728m1u1hojt0c.apps.googleusercontent.com' WHERE google_client_id = '' OR google_client_id IS NULL;
   `
 };

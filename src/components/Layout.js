@@ -48,8 +48,11 @@ export function renderLayout(container) {
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
             </svg>
           </div>
-          <div>
-            <div class="sidebar-brand">DocRx</div>
+          <div style="flex:1">
+            <div class="flex items-center gap-2">
+              <div class="sidebar-brand">DocRx</div>
+              <div id="sidebar-sync-indicator" class="sync-indicator offline" title="Sync Status" onclick="window.__triggerManualSync(event)"></div>
+            </div>
             <div class="sidebar-subtitle">Patient Records</div>
           </div>
         </div>
@@ -99,6 +102,9 @@ export function renderLayout(container) {
       <!-- Main Content Area -->
       <main class="main-content" id="page-root"></main>
 
+      <!-- Mobile Floating Sync Indicator -->
+      <div id="mobile-sync-indicator" class="sync-indicator mobile-sync-indicator offline" title="Sync Status" onclick="window.__triggerManualSync(event)" style="display:none"></div>
+
       <!-- Mobile Bottom Nav -->
       <nav class="bottom-nav" id="bottom-nav" style="display:none">
         ${NAV_ITEMS.map(item => `
@@ -121,6 +127,50 @@ export function renderLayout(container) {
       navigate('/login', true);
     }
   };
+
+  // Sync Indicator Rendering & Control
+  const STATUS_ICONS = {
+    syncing: `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18" /></svg>`,
+    success: `<svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>`,
+    offline: `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>`,
+    error: `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>`
+  };
+
+  window.__updateSyncStatus = (status) => {
+    const type = status?.type || 'offline'; // 'syncing', 'success', 'error', 'offline'
+    const msg = status?.message || 'Sync status';
+    
+    document.querySelectorAll('.sync-indicator').forEach(el => {
+      el.className = `sync-indicator ${el.id === 'mobile-sync-indicator' ? 'mobile-sync-indicator' : ''} ${type === 'success' ? 'online' : type}`;
+      el.title = msg;
+      el.innerHTML = STATUS_ICONS[type] || STATUS_ICONS.offline;
+    });
+  };
+
+  window.__triggerManualSync = async (event) => {
+    event.stopPropagation();
+    const { getSavedToken } = await import('../backup/drive.js');
+    if (!getSavedToken()) {
+      toast.info('Please connect Google Drive in Settings first.');
+      navigate('/settings?tab=backup');
+      return;
+    }
+    const { syncWithGoogleDrive } = await import('../backup/sync.js');
+    await syncWithGoogleDrive();
+  };
+
+  // Initialize status indicator state
+  import('../backup/drive.js').then(({ getSavedToken }) => {
+    const hasToken = !!getSavedToken();
+    const isOnline = navigator.onLine;
+    if (!hasToken) {
+      window.__updateSyncStatus({ type: 'offline', message: 'Google Drive disconnected' });
+    } else if (!isOnline) {
+      window.__updateSyncStatus({ type: 'offline', message: 'Offline' });
+    } else {
+      window.__updateSyncStatus({ type: 'success', message: 'Connected & ready' });
+    }
+  }).catch(() => {});
 
   // Mobile: show bottom nav
   function checkMobile() {

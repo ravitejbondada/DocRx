@@ -261,7 +261,7 @@ function renderTimelineCard(v, patientId, index) {
   const expandedContent = loadVisitDetails(v.id, patientId);
 
   return `
-    <div class="timeline-item ${index === 0 ? 'expanded' : ''}">
+    <div class="timeline-item">
       <div class="timeline-header">
         <div class="timeline-dot" style="background:${isNew ? 'var(--success)' : 'var(--info)'}"></div>
         <div style="flex:1;min-width:0">
@@ -292,7 +292,7 @@ function renderTimelineCard(v, patientId, index) {
             <svg style="width:24px;height:24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
           </button>
           <svg class="timeline-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-               style="width:24px;height:24px;transition:transform 0.2s;${index === 0 ? 'transform:rotate(180deg)' : ''}; margin-left:8px;">
+               style="width:24px;height:24px;transition:transform 0.2s; margin-left:8px;">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
           </svg>
         </div>

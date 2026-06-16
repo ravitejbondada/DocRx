@@ -2,15 +2,125 @@
 // DocRx — Setup / Onboarding Page (first run + password reset)
 // ============================================================
 import { hashPassword, generateSalt, setSession } from '../auth/crypto.js';
-import { run, queryOne } from '../db/index.js';
+import { run, queryOne, importDBBinary } from '../db/index.js';
 import { navigate, getParams } from '../router.js';
 import { toast } from '../components/Toast.js';
+import { initAuth, findBackupFile, downloadBackupFile } from '../backup/drive.js';
 
 export async function renderSetup(container) {
   const params = getParams();
   const isReset = params.mode === 'reset';
   const existing = queryOne('SELECT * FROM settings WHERE id=1');
 
+  // 1. Welcome Onboarding Landing (on fresh load/new devices)
+  if (!existing && !isReset && params.step !== 'form') {
+    container.innerHTML = `
+      <div class="auth-screen">
+        <div class="auth-card fade-in" style="max-width:480px; text-align:center;">
+          <div class="auth-logo" style="justify-content:center; margin-bottom: 24px;">
+            <div class="auth-logo-icon">
+              <svg fill="none" stroke="white" viewBox="0 0 24 24" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+              </svg>
+            </div>
+            <div style="text-align:left">
+              <div class="auth-brand">DocRx</div>
+              <div class="auth-subtitle-text">Onboarding</div>
+            </div>
+          </div>
+
+          <h2 style="font-size:1.4rem;margin-bottom:8px;font-weight:700">Welcome to DocRx</h2>
+          <p class="text-sm text-muted" style="margin-bottom:32px;line-height:1.6">
+            Set up this device by restoring your patient records from Google Drive, or initialize a new local practice database.
+          </p>
+
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <button type="button" class="btn btn-primary btn-block btn-lg" id="restore-gdrive-btn" style="background:linear-gradient(135deg, var(--sky-500), var(--teal-600))">
+              <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24" style="margin-right:8px"><path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114-3.488 0-6.322-2.834-6.322-6.322s2.834-6.322 6.322-6.322c1.602 0 3.036.598 4.135 1.583l3.053-3.053C19.262 2.502 15.993 1 12.24 1 6.033 1 12.24s5.033 11.24 11.24 11.24c6.262 0 11.362-5.1 11.362-11.24 0-.765-.09-1.503-.255-2.228H12.24z"/></svg>
+              Restore from Google Drive
+            </button>
+            
+            <div style="display:flex; align-items:center; margin: 12px 0;">
+              <div style="flex:1; height:1px; background:var(--glass-border)"></div>
+              <span style="padding:0 12px; font-size:0.75rem; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.1em;">or</span>
+              <div style="flex:1; height:1px; background:var(--glass-border)"></div>
+            </div>
+
+            <button type="button" class="btn btn-secondary btn-block btn-lg" id="start-new-btn">
+              Set Up a New Local Practice
+            </button>
+          </div>
+          
+          <div id="restore-progress" class="hidden mt-4" style="background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius-lg);padding:16px;">
+            <div class="splash-spinner" style="margin: 10px auto; width: 24px; height: 24px; border-width: 2.5px;"></div>
+            <div class="text-xs text-muted" id="restore-status-text">Preparing Google authentication...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    `;
+
+    const restoreBtn = container.querySelector('#restore-gdrive-btn');
+    const startNewBtn = container.querySelector('#start-new-btn');
+    const progressEl = container.querySelector('#restore-progress');
+    const statusText = container.querySelector('#restore-status-text');
+
+    startNewBtn?.addEventListener('click', () => {
+      navigate('/setup?step=form');
+    });
+
+    restoreBtn?.addEventListener('click', async () => {
+      restoreBtn.disabled = true;
+      startNewBtn.disabled = true;
+      progressEl.classList.remove('hidden');
+      statusText.textContent = 'Initializing Google OAuth...';
+
+      const defaultClientId = '219866394954-pg9187uvcq3gu0c4l51728m1u1hojt0c.apps.googleusercontent.com';
+
+      try {
+        const client = await initAuth(defaultClientId, async (tokenData) => {
+          statusText.textContent = 'Searching for backup on Google Drive...';
+          try {
+            const cloudFile = await findBackupFile(tokenData.accessToken);
+            if (!cloudFile) {
+              toast.info('No backup database found on Google Drive.');
+              statusText.textContent = 'Redirecting to new practice setup...';
+              setTimeout(() => navigate('/setup?step=form'), 2000);
+              return;
+            }
+
+            statusText.textContent = 'Downloading database backup...';
+            const cloudBuffer = await downloadBackupFile(tokenData.accessToken, cloudFile.id);
+            
+            statusText.textContent = 'Restoring records...';
+            await importDBBinary(cloudBuffer);
+            
+            // Turn on auto-sync automatically for the restored settings
+            run("UPDATE settings SET google_sync_enabled=1 WHERE id=1");
+            
+            toast.success('Database restored successfully from Google Drive!');
+            statusText.textContent = 'Redirecting to Login...';
+            setTimeout(() => navigate('/login', true), 1500);
+          } catch (err) {
+            console.error(err);
+            toast.error('Restore failed: ' + err.message);
+            restoreBtn.disabled = false;
+            startNewBtn.disabled = false;
+            progressEl.classList.add('hidden');
+          }
+        });
+        client.requestAccessToken({ prompt: 'consent' });
+      } catch (err) {
+        toast.error('Google authorization failed: ' + err.message);
+        restoreBtn.disabled = false;
+        startNewBtn.disabled = false;
+        progressEl.classList.add('hidden');
+      }
+    });
+    return;
+  }
+
+  // 2. Standard Practice Setup / Password Reset Form
   container.innerHTML = `
     <div class="auth-screen">
       <div class="auth-card fade-in" style="max-width:520px">
@@ -195,8 +305,8 @@ export async function renderSetup(container) {
             [docFirst, docLast, docName, docQual, docReg, cliName, cliAddr, cliPhone, hash, salt]);
         } else {
           run(`INSERT INTO settings (id, doctor_first_name, doctor_last_name, doctor_name, doctor_qualification, doctor_reg_number,
-               clinic_name, clinic_address, clinic_phone, password_hash, password_salt, schema_version)
-               VALUES (1,?,?,?,?,?,?,?,?,?,?,1)`,
+               clinic_name, clinic_address, clinic_phone, password_hash, password_salt, schema_version, google_client_id)
+               VALUES (1,?,?,?,?,?,?,?,?,?,?,4,'219866394954-pg9187uvcq3gu0c4l51728m1u1hojt0c.apps.googleusercontent.com')`,
             [docFirst, docLast, docName, docQual, docReg, cliName, cliAddr, cliPhone, hash, salt]);
         }
       }
