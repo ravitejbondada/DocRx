@@ -3,7 +3,9 @@
 // ============================================================
 import { navigate, getCurrentRoute } from '../router.js';
 import { clearSession } from '../auth/crypto.js';
-import { queryOne } from '../db/index.js';
+import { queryOne, queryAll, run } from '../db/index.js';
+import { showModal } from './Modal.js';
+import { toast } from './Toast.js';
 
 const NAV_ITEMS = [
   {
@@ -102,6 +104,11 @@ export function renderLayout(container) {
       <!-- Main Content Area -->
       <main class="main-content" id="page-root"></main>
 
+      <!-- Floating Action Button -->
+      <button class="fab" onclick="window.__openQuickVisitModal(event)" title="Start New Visit">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+      </button>
+
       <!-- Mobile Floating Sync Indicator -->
       <div id="mobile-sync-indicator" class="sync-indicator mobile-sync-indicator offline" title="Sync Status" onclick="window.__triggerManualSync(event)" style="display:none"></div>
 
@@ -157,6 +164,224 @@ export function renderLayout(container) {
     }
     const { syncWithGoogleDrive } = await import('../backup/sync.js');
     await syncWithGoogleDrive();
+  };
+
+  // Quick Start New Visit Search Modal
+  window.__openQuickVisitModal = (event) => {
+    if (event) event.stopPropagation();
+
+    const bodyHtml = `
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Search Patient</label>
+        <input type="text" class="input" id="quick-visit-search" placeholder="Type name, phone, or code..." style="width: 100%" autocomplete="off" autofocus />
+        <div id="quick-visit-results" class="search-results-list hidden"></div>
+      </div>
+    `;
+
+    showModal({
+      title: 'Start New Visit / Checkup',
+      bodyHtml,
+      confirmText: '', // Empty: Selection/Click will perform the confirm/navigation
+      cancelText: 'Close',
+      onOpen: (overlay) => {
+        const input = overlay.querySelector('#quick-visit-search');
+        const resultsEl = overlay.querySelector('#quick-visit-results');
+        
+        let matches = [];
+        let selectedIdx = -1;
+
+        const renderMatches = (q) => {
+          resultsEl.innerHTML = '';
+          if (!q) {
+            resultsEl.classList.add('hidden');
+            return;
+          }
+
+          if (matches.length === 0) {
+            resultsEl.innerHTML = `
+              <div class="search-result-item" id="quick-register-option" style="color:var(--sky-400); font-weight:600;">
+                <div class="patient-details">
+                  <span class="patient-name">+ Register "${q}"</span>
+                  <span class="patient-meta">Create new patient profile</span>
+                </div>
+              </div>
+            `;
+          } else {
+            let html = matches.map((p, idx) => `
+              <div class="search-result-item ${idx === selectedIdx ? 'selected' : ''}" data-id="${p.id}" data-idx="${idx}">
+                <div class="patient-details">
+                  <span class="patient-name">${p.full_name}</span>
+                  <span class="patient-meta">${p.patient_code} · ${p.age}y · ${p.phone}</span>
+                </div>
+                ${p.blood_group ? `<span class="badge badge-teal" style="font-size:0.7rem;padding:2px 6px;">${p.blood_group}</span>` : ''}
+              </div>
+            `).join('');
+
+            // Append Register option at the bottom
+            html += `
+              <div class="search-result-item" id="quick-register-option" style="color:var(--sky-400); font-weight:600; border-top:1px dashed var(--glass-border)">
+                <div class="patient-details">
+                  <span class="patient-name">+ Register "${q}" as new patient</span>
+                  <span class="patient-meta">Create new patient profile</span>
+                </div>
+              </div>
+            `;
+            resultsEl.innerHTML = html;
+          }
+
+          resultsEl.classList.remove('hidden');
+
+          // Bind click listeners
+          resultsEl.querySelectorAll('.search-result-item').forEach(item => {
+            item.addEventListener('click', () => {
+              overlay.remove(); // Close search modal
+              if (item.id === 'quick-register-option') {
+                window.__openQuickRegisterModal(q);
+              } else {
+                navigate(`/patients/${item.dataset.id}/visit/new`);
+              }
+            });
+          });
+        };
+
+        input.addEventListener('input', () => {
+          const q = input.value.trim();
+          if (!q) {
+            resultsEl.classList.add('hidden');
+            resultsEl.innerHTML = '';
+            matches = [];
+            return;
+          }
+
+          const like = `%${q}%`;
+          matches = queryAll(`
+            SELECT id, patient_code, full_name, age, phone, blood_group
+            FROM patients
+            WHERE deleted = 0
+              AND (full_name LIKE ? COLLATE NOCASE OR phone LIKE ? OR patient_code LIKE ?)
+            ORDER BY full_name COLLATE NOCASE ASC LIMIT 5
+          `, [like, like, like]);
+          
+          selectedIdx = -1;
+          renderMatches(q);
+        });
+
+        // Key navigation (up, down, enter)
+        input.addEventListener('keydown', (e) => {
+          const items = resultsEl.querySelectorAll('.search-result-item');
+          if (!items.length) return;
+
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            selectedIdx = (selectedIdx + 1) % items.length;
+            renderMatches(input.value.trim());
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            selectedIdx = (selectedIdx - 1 + items.length) % items.length;
+            renderMatches(input.value.trim());
+          } else if (e.key === 'Enter') {
+            e.preventDefault();
+            const target = items[selectedIdx === -1 ? 0 : selectedIdx];
+            if (target) target.click();
+          }
+        });
+      }
+    });
+  };
+
+  // Quick Register Patient Modal Dialog
+  window.__openQuickRegisterModal = (prefilledName = '') => {
+    const today = new Date().toISOString().slice(0, 10);
+    const bodyHtml = `
+      <form id="quick-register-form" novalidate style="display:flex; flex-direction:column; gap:12px; text-align:left;">
+        <div class="form-group">
+          <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Full Name <span class="req">*</span></label>
+          <input class="input" id="qr-name" type="text" value="${prefilledName.replace(/"/g, '&quot;')}" style="width:100%" required />
+        </div>
+        <div class="form-grid form-grid-2" style="gap:12px">
+          <div class="form-group">
+            <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Age <span class="req">*</span></label>
+            <input class="input" id="qr-age" type="number" min="0" placeholder="Years" style="width:100%" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Gender <span class="req">*</span></label>
+            <select class="select" id="qr-gender" style="width:100%" required>
+              <option value="M">Male</option>
+              <option value="F">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Phone Number <span class="req">*</span></label>
+          <input class="input" id="qr-phone" type="text" placeholder="10-digit mobile number" style="width:100%" required />
+        </div>
+        <div class="form-grid form-grid-2" style="gap:12px">
+          <div class="form-group">
+            <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Blood Group</label>
+            <select class="select" id="qr-blood" style="width:100%">
+              <option value="">-- Select --</option>
+              ${['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(b => `<option value="${b}">${b}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">DOB (Optional)</label>
+            <input class="input" id="qr-dob" type="date" max="${today}" style="width:100%" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Address / Location <span class="req">*</span></label>
+          <input class="input" id="qr-address" type="text" placeholder="e.g. Village Name / Town" style="width:100%" required />
+        </div>
+      </form>
+    `;
+
+    showModal({
+      title: 'Register New Patient',
+      bodyHtml,
+      confirmText: 'Register & Start Visit',
+      cancelText: 'Cancel',
+      onConfirm: (overlay) => {
+        const nameEl = overlay.querySelector('#qr-name');
+        const ageEl = overlay.querySelector('#qr-age');
+        const genderEl = overlay.querySelector('#qr-gender');
+        const phoneEl = overlay.querySelector('#qr-phone');
+        const bloodEl = overlay.querySelector('#qr-blood');
+        const dobEl = overlay.querySelector('#qr-dob');
+        const addrEl = overlay.querySelector('#qr-address');
+
+        const name = nameEl.value.trim();
+        const age = parseInt(ageEl.value.trim(), 10);
+        const gender = genderEl.value;
+        const phone = phoneEl.value.trim();
+        const blood = bloodEl.value;
+        const dob = dobEl.value || null;
+        const address = addrEl.value.trim();
+
+        if (!name || isNaN(age) || !phone || !address) {
+          toast.error('Please fill all required fields.');
+          return false;
+        }
+
+        try {
+          const count = queryOne("SELECT COUNT(*) as c FROM patients").c;
+          const code = `PX${String(count + 1).padStart(4, '0')}`;
+          const pId = crypto.randomUUID();
+
+          run(`
+            INSERT INTO patients (id, patient_code, full_name, dob, age, gender, phone, address, blood_group, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','localtime'), datetime('now','localtime'))
+          `, [pId, code, name, dob, age, gender, phone, address, blood]);
+
+          toast.success('Patient registered successfully!');
+          navigate(`/patients/${pId}/visit/new`);
+          return true; // Closes modal
+        } catch (err) {
+          toast.error('Registration failed: ' + err.message);
+          return false; // Keep modal open
+        }
+      }
+    });
   };
 
   // Initialize status indicator state
