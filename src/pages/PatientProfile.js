@@ -323,7 +323,7 @@ function loadVisitDetails(visitId, patientId) {
     <div class="divider" style="margin:0 0 14px"></div>
 
     ${vitals.length ? `
-    <div class="vitals-grid mb-4" style="grid-template-columns:repeat(4,1fr)">
+    <div class="vitals-grid profile-vitals-grid mb-4">
       ${vitals.map(vt => `
         <div class="vital-card">
           <div class="vital-label">${vt.label}</div>

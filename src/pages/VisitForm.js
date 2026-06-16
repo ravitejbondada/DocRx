@@ -59,7 +59,7 @@ export function renderVisitForm(container, params) {
       ` : ''}
 
       <form id="visit-form" novalidate>
-        <div style="display:grid;grid-template-columns:1fr 320px;gap:20px">
+        <div class="visit-form-layout">
           <!-- Left Column -->
           <div>
 
@@ -513,7 +513,7 @@ export function renderVisitForm(container, params) {
     if (!testRowData.length) { rowsEl.innerHTML = ''; emptyEl.style.display = 'block'; return; }
     emptyEl.style.display = 'none';
     rowsEl.innerHTML = testRowData.map((t, i) => `
-      <div style="display:grid;grid-template-columns:2fr 1fr 0.8fr 32px;gap:8px;margin-bottom:8px;align-items:start">
+      <div class="test-row" data-idx="${i}">
         <div class="autocomplete-wrap">
           <input class="input test-name" type="text" placeholder="Test name" value="${e(t.test_name)}" data-idx="${i}" autocomplete="off" ${isLocked ? 'disabled' : ''} />
         </div>

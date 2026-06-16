@@ -96,7 +96,7 @@ export function renderDashboard(container) {
         </div>
       </div>
 
-      <div class="form-grid" style="grid-template-columns:1fr 340px;gap:24px">
+      <div class="dashboard-main-grid">
         <!-- Left: Recent Patients -->
         <div>
           <div class="section-header">
