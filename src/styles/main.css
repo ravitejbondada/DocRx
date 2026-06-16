@@ -1449,7 +1449,18 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
   .table-wrap td:nth-of-type(4) {
     margin-top: 4px !important;
   }
+  .prev-rx-mobile-header {
+    display: flex !important;
+    align-items: center;
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 12px;
+  }
 }
+
+.prev-rx-mobile-header {
+  display: none;
+}
+
 
 
 

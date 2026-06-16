@@ -284,7 +284,7 @@ export function renderVisitForm(container, params) {
             <!-- Previous Prescriptions Card (drawer on mobile) -->
             <div id="prev-rx-container" class="card card-p prev-rx-sidebar-container" style="position:sticky;top:20px">
               <!-- Mobile Back Header -->
-              <div class="hide-on-desktop mb-4" style="display:flex; align-items:center; border-bottom:1px solid var(--glass-border); padding-bottom:12px;">
+              <div class="prev-rx-mobile-header mb-4">
                 <button type="button" class="btn btn-ghost btn-sm" onclick="window.__toggleMobilePrevRx(false)" style="padding-left:0; font-size:0.95rem;">
                   <span class="hide-on-mobile">← Back to Visit Form</span>
                   <span class="hide-on-desktop">← Back</span>
