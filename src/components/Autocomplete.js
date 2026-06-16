@@ -48,7 +48,7 @@ export function createAutocomplete({ input, fetchFn, onSelect, minChars = 2 }) {
         <span>${highlight(item.label, lastPart)}</span>
         ${item.sublabel ? `<span class="autocomplete-item-meta">${item.sublabel}</span>` : ''}
       `;
-      el.addEventListener('mousedown', (e) => {
+      el.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         select(i);
       });
