@@ -178,115 +178,120 @@ export function renderLayout(container) {
       </div>
     `;
 
-    showModal({
+    const overlay = showModal({
       title: 'Start New Visit / Checkup',
       bodyHtml,
-      confirmText: '', // Empty: Selection/Click will perform the confirm/navigation
-      cancelText: 'Close',
-      onOpen: (overlay) => {
-        const input = overlay.querySelector('#quick-visit-search');
-        const resultsEl = overlay.querySelector('#quick-visit-results');
-        
-        let matches = [];
-        let selectedIdx = -1;
+      confirmText: '', // Selection/Click will perform the confirm/navigation
+      cancelText: 'Close'
+    });
 
-        const renderMatches = (q) => {
-          resultsEl.innerHTML = '';
-          if (!q) {
-            resultsEl.classList.add('hidden');
-            return;
-          }
+    const confirmBtn = overlay.querySelector('#modal-confirm-btn');
+    if (confirmBtn) confirmBtn.style.display = 'none';
 
-          if (matches.length === 0) {
-            resultsEl.innerHTML = `
-              <div class="search-result-item" id="quick-register-option" style="color:var(--sky-400); font-weight:600;">
-                <div class="patient-details">
-                  <span class="patient-name">+ Register "${q}"</span>
-                  <span class="patient-meta">Create new patient profile</span>
-                </div>
-              </div>
-            `;
+    const input = overlay.querySelector('#quick-visit-search');
+    const resultsEl = overlay.querySelector('#quick-visit-results');
+    
+    let matches = [];
+    let selectedIdx = -1;
+
+    const renderMatches = (q) => {
+      resultsEl.innerHTML = '';
+      if (!q) {
+        resultsEl.classList.add('hidden');
+        return;
+      }
+
+      if (matches.length === 0) {
+        resultsEl.innerHTML = `
+          <div class="search-result-item" id="quick-register-option" style="color:var(--sky-400); font-weight:600;">
+            <div class="patient-details">
+              <span class="patient-name">+ Register "${q}"</span>
+              <span class="patient-meta">Create new patient profile</span>
+            </div>
+          </div>
+        `;
+      } else {
+        let html = matches.map((p, idx) => `
+          <div class="search-result-item ${idx === selectedIdx ? 'selected' : ''}" data-id="${p.id}" data-idx="${idx}">
+            <div class="patient-details">
+              <span class="patient-name">${p.full_name}</span>
+              <span class="patient-meta">${p.patient_code} · ${p.age}y · ${p.phone}</span>
+            </div>
+            ${p.blood_group ? `<span class="badge badge-teal" style="font-size:0.7rem;padding:2px 6px;">${p.blood_group}</span>` : ''}
+          </div>
+        `).join('');
+
+        // Append Register option at the bottom
+        html += `
+          <div class="search-result-item" id="quick-register-option" style="color:var(--sky-400); font-weight:600; border-top:1px dashed var(--glass-border)">
+            <div class="patient-details">
+              <span class="patient-name">+ Register "${q}" as new patient</span>
+              <span class="patient-meta">Create new patient profile</span>
+            </div>
+          </div>
+        `;
+        resultsEl.innerHTML = html;
+      }
+
+      resultsEl.classList.remove('hidden');
+
+      // Bind click listeners
+      resultsEl.querySelectorAll('.search-result-item').forEach(item => {
+        item.addEventListener('click', () => {
+          overlay.classList.remove('open');
+          setTimeout(() => overlay.remove(), 250);
+          if (item.id === 'quick-register-option') {
+            window.__openQuickRegisterModal(q);
           } else {
-            let html = matches.map((p, idx) => `
-              <div class="search-result-item ${idx === selectedIdx ? 'selected' : ''}" data-id="${p.id}" data-idx="${idx}">
-                <div class="patient-details">
-                  <span class="patient-name">${p.full_name}</span>
-                  <span class="patient-meta">${p.patient_code} · ${p.age}y · ${p.phone}</span>
-                </div>
-                ${p.blood_group ? `<span class="badge badge-teal" style="font-size:0.7rem;padding:2px 6px;">${p.blood_group}</span>` : ''}
-              </div>
-            `).join('');
-
-            // Append Register option at the bottom
-            html += `
-              <div class="search-result-item" id="quick-register-option" style="color:var(--sky-400); font-weight:600; border-top:1px dashed var(--glass-border)">
-                <div class="patient-details">
-                  <span class="patient-name">+ Register "${q}" as new patient</span>
-                  <span class="patient-meta">Create new patient profile</span>
-                </div>
-              </div>
-            `;
-            resultsEl.innerHTML = html;
-          }
-
-          resultsEl.classList.remove('hidden');
-
-          // Bind click listeners
-          resultsEl.querySelectorAll('.search-result-item').forEach(item => {
-            item.addEventListener('click', () => {
-              overlay.remove(); // Close search modal
-              if (item.id === 'quick-register-option') {
-                window.__openQuickRegisterModal(q);
-              } else {
-                navigate(`/patients/${item.dataset.id}/visit/new`);
-              }
-            });
-          });
-        };
-
-        input.addEventListener('input', () => {
-          const q = input.value.trim();
-          if (!q) {
-            resultsEl.classList.add('hidden');
-            resultsEl.innerHTML = '';
-            matches = [];
-            return;
-          }
-
-          const like = `%${q}%`;
-          matches = queryAll(`
-            SELECT id, patient_code, full_name, age, phone, blood_group
-            FROM patients
-            WHERE deleted = 0
-              AND (full_name LIKE ? COLLATE NOCASE OR phone LIKE ? OR patient_code LIKE ?)
-            ORDER BY full_name COLLATE NOCASE ASC LIMIT 5
-          `, [like, like, like]);
-          
-          selectedIdx = -1;
-          renderMatches(q);
-        });
-
-        // Key navigation (up, down, enter)
-        input.addEventListener('keydown', (e) => {
-          const items = resultsEl.querySelectorAll('.search-result-item');
-          if (!items.length) return;
-
-          if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            selectedIdx = (selectedIdx + 1) % items.length;
-            renderMatches(input.value.trim());
-          } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            selectedIdx = (selectedIdx - 1 + items.length) % items.length;
-            renderMatches(input.value.trim());
-          } else if (e.key === 'Enter') {
-            e.preventDefault();
-            const target = items[selectedIdx === -1 ? 0 : selectedIdx];
-            if (target) target.click();
+            navigate(`/patients/${item.dataset.id}/visit/new`);
           }
         });
+      });
+    };
+
+    input.addEventListener('input', () => {
+      const q = input.value.trim();
+      if (!q) {
+        resultsEl.classList.add('hidden');
+        resultsEl.innerHTML = '';
+        matches = [];
+        return;
+      }
+
+      const like = `%${q}%`;
+      matches = queryAll(`
+        SELECT id, patient_code, full_name, age, phone, blood_group
+        FROM patients
+        WHERE deleted = 0
+          AND (full_name LIKE ? COLLATE NOCASE OR phone LIKE ? OR patient_code LIKE ?)
+        ORDER BY full_name COLLATE NOCASE ASC LIMIT 5
+      `, [like, like, like]);
+      
+      selectedIdx = -1;
+      renderMatches(q);
+    });
+
+    // Key navigation (up, down, enter)
+    input.addEventListener('keydown', (e) => {
+      const items = resultsEl.querySelectorAll('.search-result-item');
+      if (!items.length) return;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedIdx = (selectedIdx + 1) % items.length;
+        renderMatches(input.value.trim());
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedIdx = (selectedIdx - 1 + items.length) % items.length;
+        renderMatches(input.value.trim());
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const target = items[selectedIdx === -1 ? 0 : selectedIdx];
+        if (target) target.click();
       }
     });
+
+    setTimeout(() => input.focus(), 150);
   };
 
   // Quick Register Patient Modal Dialog
