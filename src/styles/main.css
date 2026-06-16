@@ -1355,6 +1355,54 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
   }
 }
 
+/* Patient profile strip responsive layout optimizations */
+.profile-header-main {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex: 1;
+  min-width: 0;
+}
+.profile-analytics {
+  display: flex;
+  gap: 16px;
+}
+@media (max-width: 768px) {
+  .profile-strip {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 16px !important;
+    gap: 16px !important;
+  }
+  .profile-header-main {
+    gap: 14px;
+    width: 100%;
+  }
+  .profile-avatar {
+    width: 52px !important;
+    height: 52px !important;
+    font-size: 1.3rem !important;
+  }
+  .profile-name {
+    font-size: 1.2rem !important;
+  }
+  .profile-meta {
+    gap: 8px 12px !important;
+    margin-top: 6px !important;
+  }
+  .profile-analytics {
+    width: 100%;
+    margin-left: 0 !important;
+    background: rgba(255, 255, 255, 0.02) !important;
+    border: 1px solid var(--glass-border) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: 12px !important;
+    justify-content: space-around !important;
+    gap: 8px !important;
+  }
+}
+
+
 
 
 
