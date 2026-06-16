@@ -715,7 +715,7 @@ function renderLastRxSidebar(patientId, currentVisitId) {
 
   let html = '';
   lastVisits.forEach(v => {
-    const meds = qa('SELECT * FROM prescriptions WHERE visit_id=? ORDER BY sort_order ASC', [v.id]);
+    const meds = qa('SELECT * FROM prescriptions WHERE visit_id=? AND deleted=0 ORDER BY sort_order ASC', [v.id]);
     html += `
       <div style="margin-bottom:16px">
         <div class="flex justify-between items-center mb-2">
