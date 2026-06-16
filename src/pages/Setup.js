@@ -31,23 +31,13 @@ export async function renderSetup(container) {
 
           <h2 style="font-size:1.4rem;margin-bottom:8px;font-weight:700">Welcome to DocRx</h2>
           <p class="text-sm text-muted" style="margin-bottom:32px;line-height:1.6">
-            Set up this device by restoring your patient records from Google Drive, or initialize a new local practice database.
+            Please sign in with Google to check for existing practice database backups and initialize your system.
           </p>
 
           <div style="display:flex; flex-direction:column; gap:12px;">
             <button type="button" class="btn btn-primary btn-block btn-lg" id="restore-gdrive-btn" style="background:linear-gradient(135deg, var(--sky-500), var(--teal-600))">
               <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24" style="margin-right:8px"><path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114-3.488 0-6.322-2.834-6.322-6.322s2.834-6.322 6.322-6.322c1.602 0 3.036.598 4.135 1.583l3.053-3.053C19.262 2.502 15.993 1 12.24 1 6.033 1 12.24s5.033 11.24 11.24 11.24c6.262 0 11.362-5.1 11.362-11.24 0-.765-.09-1.503-.255-2.228H12.24z"/></svg>
-              Restore from Google Drive
-            </button>
-            
-            <div style="display:flex; align-items:center; margin: 12px 0;">
-              <div style="flex:1; height:1px; background:var(--glass-border)"></div>
-              <span style="padding:0 12px; font-size:0.75rem; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.1em;">or</span>
-              <div style="flex:1; height:1px; background:var(--glass-border)"></div>
-            </div>
-
-            <button type="button" class="btn btn-secondary btn-block btn-lg" id="start-new-btn">
-              Set Up a New Local Practice
+              Sign In with Google
             </button>
           </div>
           
@@ -61,17 +51,11 @@ export async function renderSetup(container) {
     `;
 
     const restoreBtn = container.querySelector('#restore-gdrive-btn');
-    const startNewBtn = container.querySelector('#start-new-btn');
     const progressEl = container.querySelector('#restore-progress');
     const statusText = container.querySelector('#restore-status-text');
 
-    startNewBtn?.addEventListener('click', () => {
-      navigate('/setup?step=form');
-    });
-
     restoreBtn?.addEventListener('click', async () => {
       restoreBtn.disabled = true;
-      startNewBtn.disabled = true;
       progressEl.classList.remove('hidden');
       statusText.textContent = 'Initializing Google OAuth...';
 
@@ -83,7 +67,7 @@ export async function renderSetup(container) {
           try {
             const cloudFile = await findBackupFile(tokenData.accessToken);
             if (!cloudFile) {
-              toast.info('No backup database found on Google Drive.');
+              toast.info('No backup database found. Launching first-time setup...');
               statusText.textContent = 'Redirecting to new practice setup...';
               setTimeout(() => navigate('/setup?step=form'), 2000);
               return;
@@ -105,7 +89,6 @@ export async function renderSetup(container) {
             console.error(err);
             toast.error('Restore failed: ' + err.message);
             restoreBtn.disabled = false;
-            startNewBtn.disabled = false;
             progressEl.classList.add('hidden');
           }
         });
@@ -113,7 +96,6 @@ export async function renderSetup(container) {
       } catch (err) {
         toast.error('Google authorization failed: ' + err.message);
         restoreBtn.disabled = false;
-        startNewBtn.disabled = false;
         progressEl.classList.add('hidden');
       }
     });
