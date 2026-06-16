@@ -6,7 +6,7 @@ import { navigate } from '../router.js';
 
 export function renderPatientProfile(container, params) {
   const { id } = params;
-  const patient = queryOne('SELECT * FROM patients WHERE id=?', [id]);
+  const patient = queryOne('SELECT * FROM patients WHERE id=? AND deleted=0', [id]);
 
   if (!patient) {
     container.innerHTML = `
@@ -24,9 +24,9 @@ export function renderPatientProfile(container, params) {
            COUNT(DISTINCT rx.id) as rx_count,
            COUNT(DISTINCT dt.id) as test_count
     FROM visits v
-    LEFT JOIN prescriptions rx ON rx.visit_id = v.id
-    LEFT JOIN diagnostic_tests dt ON dt.visit_id = v.id
-    WHERE v.patient_id = ?
+    LEFT JOIN prescriptions rx ON rx.visit_id = v.id AND rx.deleted = 0
+    LEFT JOIN diagnostic_tests dt ON dt.visit_id = v.id AND dt.deleted = 0
+    WHERE v.patient_id = ? AND v.deleted = 0
     GROUP BY v.id
     ORDER BY v.visit_date DESC, v.created_at DESC
   `, [id]);
@@ -177,7 +177,7 @@ export function renderPatientProfile(container, params) {
         const { PDFDocument } = await import('pdf-lib');
         
         let pdfDoc;
-        const visitRow = queryOne('SELECT attachment_idb_key FROM visits WHERE id=?', [vId]);
+        const visitRow = queryOne('SELECT attachment_idb_key FROM visits WHERE id=? AND deleted=0', [vId]);
         const existingKey = visitRow?.attachment_idb_key;
         
         if (existingKey) {
@@ -305,9 +305,9 @@ function renderTimelineCard(v, patientId, index) {
 }
 
 function loadVisitDetails(visitId, patientId) {
-  const rx    = queryAll('SELECT * FROM prescriptions WHERE visit_id=? ORDER BY sort_order ASC', [visitId]);
-  const tests = queryAll('SELECT * FROM diagnostic_tests WHERE visit_id=?', [visitId]);
-  const v     = queryOne('SELECT * FROM visits WHERE id=?', [visitId]);
+  const rx    = queryAll('SELECT * FROM prescriptions WHERE visit_id=? AND deleted=0 ORDER BY sort_order ASC', [visitId]);
+  const tests = queryAll('SELECT * FROM diagnostic_tests WHERE visit_id=? AND deleted=0', [visitId]);
+  const v     = queryOne('SELECT * FROM visits WHERE id=? AND deleted=0', [visitId]);
 
   const vitals = [
     { label: 'BP', value: v.bp, unit: 'mmHg' },

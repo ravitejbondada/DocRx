@@ -10,32 +10,32 @@ import { showModal } from '../components/Modal.js';
 export function renderVisitForm(container, params) {
   const { patientId, visitId } = params;
   const isEdit = !!visitId;
-  const patient = queryOne('SELECT * FROM patients WHERE id=?', [patientId]);
+  const patient = queryOne('SELECT * FROM patients WHERE id=? AND deleted=0', [patientId]);
 
   if (!patient) {
     container.innerHTML = `<div class="page-content"><div class="empty-state"><h3>Patient not found</h3></div></div>`;
     return;
   }
 
-  const existing = isEdit ? queryOne('SELECT * FROM visits WHERE id=? AND patient_id=?', [visitId, patientId]) : null;
+  const existing = isEdit ? queryOne('SELECT * FROM visits WHERE id=? AND patient_id=? AND deleted=0', [visitId, patientId]) : null;
   const today    = new Date().toISOString().slice(0, 10);
   // Default to locked if editing a past visit, unless we are explicitly unlocking it
-  let isLocked = isEdit && existing?.visit_date !== today;
+  let isLocked = isEdit && !window.__visitUnlocked;
 
   // Function to re-render when unlocked
   function renderInner() {
     // Medicine rows state
     let rxRows = [];
     if (isEdit) {
-      rxRows = queryAll('SELECT * FROM prescriptions WHERE visit_id=? ORDER BY sort_order ASC', [visitId]);
+      rxRows = queryAll('SELECT * FROM prescriptions WHERE visit_id=? AND deleted=0 ORDER BY sort_order ASC', [visitId]);
     }
 
   // Last visit for "Copy Prescription" feature
   const lastVisits = queryAll(`
     SELECT v.id, v.visit_date, v.diagnosis FROM visits v
-    WHERE v.patient_id=? AND v.id != ?
+    WHERE v.patient_id=? AND v.id != ? AND v.deleted=0
     ORDER BY v.visit_date DESC LIMIT 5
-  `, [patientId, visitId || 0]);
+  `, [patientId, visitId || '']);
 
   container.innerHTML = `
     <div class="page-header">
@@ -274,21 +274,22 @@ export function renderVisitForm(container, params) {
   // --- Quick Edit Alerts & Delete Visit ---
   window.__quickEditAlerts = async (pId) => {
     const { queryOne, run } = await import('../db/index.js');
-    const p = queryOne('SELECT allergies, chronic_conditions FROM patients WHERE id=?', [pId]);
+    const p = queryOne('SELECT allergies, chronic_conditions FROM patients WHERE id=? AND deleted=0', [pId]);
     const a = prompt('Allergies (leave empty if none):', p.allergies || '');
     if (a === null) return;
     const c = prompt('Chronic Conditions (leave empty if none):', p.chronic_conditions || '');
     if (c === null) return;
-    run('UPDATE patients SET allergies=?, chronic_conditions=? WHERE id=?', [a.trim()||null, c.trim()||null, pId]);
+    run('UPDATE patients SET allergies=?, chronic_conditions=?, updated_at=datetime(\'now\',\'localtime\') WHERE id=?', [a.trim()||null, c.trim()||null, pId]);
     window.location.reload();
   };
 
   window.__deleteVisit = async (vId, pId) => {
     if (!confirm('Are you sure you want to delete this visit completely? This cannot be undone.')) return;
     const { run } = await import('../db/index.js');
-    run('DELETE FROM visits WHERE id=?', [vId]);
-    run('DELETE FROM prescriptions WHERE visit_id=?', [vId]);
-    run('DELETE FROM diagnostic_tests WHERE visit_id=?', [vId]);
+    const now = new Date().toISOString();
+    run('UPDATE visits SET deleted=1, deleted_at=? WHERE id=?', [now, vId]);
+    run('UPDATE prescriptions SET deleted=1, deleted_at=? WHERE visit_id=?', [now, vId]);
+    run('UPDATE diagnostic_tests SET deleted=1, deleted_at=? WHERE visit_id=?', [now, vId]);
     window.__navigate('/patients/' + pId);
   };
 
@@ -496,7 +497,7 @@ export function renderVisitForm(container, params) {
   document.addEventListener('click', () => copyDropdown?.classList.remove('open'));
 
   window.__copyRx = (fromVisitId) => {
-    const meds = queryAll('SELECT * FROM prescriptions WHERE visit_id=? ORDER BY sort_order ASC', [fromVisitId]);
+    const meds = queryAll('SELECT * FROM prescriptions WHERE visit_id=? AND deleted=0 ORDER BY sort_order ASC', [fromVisitId]);
     rxRowData = meds.map(m => ({ ...m, id: undefined }));
     refreshRxTable();
     copyDropdown?.classList.remove('open');
@@ -505,7 +506,7 @@ export function renderVisitForm(container, params) {
 
   // --- Diagnostic test rows ---
   let testRowData = [];
-  if (isEdit) testRowData = queryAll('SELECT * FROM diagnostic_tests WHERE visit_id=?', [visitId]);
+  if (isEdit) testRowData = queryAll('SELECT * FROM diagnostic_tests WHERE visit_id=? AND deleted=0', [visitId]);
 
   function refreshTestTable() {
     const rowsEl  = container.querySelector('#test-rows');
@@ -586,6 +587,7 @@ export function renderVisitForm(container, params) {
     btn.disabled = true;
 
     try {
+      const vId = isEdit ? visitId : crypto.randomUUID();
       if (isEdit) {
         run(`UPDATE visits SET visit_date=?,chief_complaint=?,diagnosis=?,clinical_notes=?,
              bp=?,temperature=?,weight=?,height=?,bmi=?,spo2=?,pulse=?,visit_type=?,
@@ -593,83 +595,48 @@ export function renderVisitForm(container, params) {
           [getValue('#visit_date'), chief, cleanedDx, getValue('#clinical_notes')||null,
            getValue('#bp')||null, getValue('#temperature')||null, w, h, bmi,
            getValue('#spo2')||null, getValue('#pulse')||null, getValue('#visit_type'),
-           getValue('#follow_up_date')||null, getValue('#fee') || 0, visitId]);
+           getValue('#follow_up_date')||null, getValue('#fee') || 0, vId]);
 
-        // Update prescriptions
-        run('DELETE FROM prescriptions WHERE visit_id=?', [visitId]);
+        // Soft delete prescriptions & tests
+        const now = new Date().toISOString();
+        run("UPDATE prescriptions SET deleted=1, deleted_at=? WHERE visit_id=?", [now, vId]);
+        run("UPDATE diagnostic_tests SET deleted=1, deleted_at=? WHERE visit_id=?", [now, vId]);
       } else {
-        const newVisitId = runGetId(
-          `INSERT INTO visits (patient_id,visit_date,chief_complaint,diagnosis,clinical_notes,
-           bp,temperature,weight,height,bmi,spo2,pulse,visit_type,follow_up_date,fee)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-          [patientId, getValue('#visit_date'), chief, cleanedDx,
+        run(
+          `INSERT INTO visits (id,patient_id,visit_date,chief_complaint,diagnosis,clinical_notes,
+           bp,temperature,weight,height,bmi,spo2,pulse,visit_type,follow_up_date,fee,updated_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now','localtime'))`,
+          [vId, patientId, getValue('#visit_date'), chief, cleanedDx,
            getValue('#clinical_notes')||null, getValue('#bp')||null,
            getValue('#temperature')||null, w, h, bmi,
            getValue('#spo2')||null, getValue('#pulse')||null, getValue('#visit_type'),
            getValue('#follow_up_date')||null, getValue('#fee') || 0]);
-
-        // Save prescriptions
-        const vId = isEdit ? visitId : newVisitId;
-        rxRowData.forEach((r, i) => {
-          if (!r.medicine_name) return;
-          run(`INSERT INTO prescriptions (visit_id,medicine_name,dosage,frequency,route,duration,instructions,sort_order)
-               VALUES (?,?,?,?,?,?,?,?)`,
-            [vId, r.medicine_name, r.dosage||null, r.frequency||null, r.route||'Oral',
-             r.duration||null, r.instructions||null, i]);
-          // Update medicine use_count
-          run(`UPDATE medicines SET use_count=use_count+1, last_used_at=datetime('now','localtime') WHERE name=?`, [r.medicine_name]);
-          // Add to medicines if new
-          run(`INSERT OR IGNORE INTO medicines (name, default_route) VALUES (?, 'Oral')`, [r.medicine_name]);
-        });
-
-        // Save tests
-        testRowData.forEach(t => {
-          if (!t.test_name) return;
-          run(`INSERT INTO diagnostic_tests (visit_id, test_name, instructions, urgency)
-               VALUES (?,?,?,?)`,
-            [vId, t.test_name, t.instructions||null, t.urgency||'Routine']);
-          run(`UPDATE test_catalog SET use_count=use_count+1 WHERE name=?`, [t.test_name]);
-          run(`INSERT OR IGNORE INTO test_catalog (name) VALUES (?)`, [t.test_name]);
-        });
-
-        // Update diagnosis suggestions
-        if (cleanedDx) {
-          const diagnoses = cleanedDx.split(',').map(d => d.trim()).filter(Boolean);
-          diagnoses.forEach(d => {
-            run(`INSERT OR IGNORE INTO diagnosis_suggestions (name) VALUES (?)`, [d]);
-            run(`UPDATE diagnosis_suggestions SET use_count=use_count+1 WHERE name=?`, [d]);
-          });
-        }
-
-        toast.success('Visit saved successfully.');
-        if (printAfterSave) window.__printVisit(vId);
-        setTimeout(() => navigate(`/patients/${patientId}`), printAfterSave ? 500 : 0);
-        return;
       }
 
-      // For edit path, save rx
+      // Save prescriptions
       rxRowData.forEach((r, i) => {
         if (!r.medicine_name) return;
-        run(`INSERT INTO prescriptions (visit_id,medicine_name,dosage,frequency,route,duration,instructions,sort_order)
-             VALUES (?,?,?,?,?,?,?,?)`,
-          [visitId, r.medicine_name, r.dosage||null, r.frequency||null, r.route||'Oral',
+        run(`INSERT INTO prescriptions (id,visit_id,medicine_name,dosage,frequency,route,duration,instructions,sort_order,updated_at)
+             VALUES (?,?,?,?,?,?,?,?,?,datetime('now','localtime'))`,
+          [crypto.randomUUID(), vId, r.medicine_name, r.dosage||null, r.frequency||null, r.route||'Oral',
            r.duration||null, r.instructions||null, i]);
+        // Update medicine use_count
         run(`UPDATE medicines SET use_count=use_count+1, last_used_at=datetime('now','localtime') WHERE name=?`, [r.medicine_name]);
+        // Add to medicines if new
         run(`INSERT OR IGNORE INTO medicines (name, default_route) VALUES (?, 'Oral')`, [r.medicine_name]);
       });
 
-      // Update tests
-      run('DELETE FROM diagnostic_tests WHERE visit_id=?', [visitId]);
+      // Save tests
       testRowData.forEach(t => {
         if (!t.test_name) return;
-        run(`INSERT INTO diagnostic_tests (visit_id, test_name, instructions, urgency)
-             VALUES (?,?,?,?)`,
-          [visitId, t.test_name, t.instructions||null, t.urgency||'Routine']);
+        run(`INSERT INTO diagnostic_tests (id, visit_id, test_name, instructions, urgency, updated_at)
+             VALUES (?,?,?,?,?,datetime('now','localtime'))`,
+          [crypto.randomUUID(), vId, t.test_name, t.instructions||null, t.urgency||'Routine']);
         run(`UPDATE test_catalog SET use_count=use_count+1 WHERE name=?`, [t.test_name]);
         run(`INSERT OR IGNORE INTO test_catalog (name) VALUES (?)`, [t.test_name]);
       });
 
-      // Update diagnosis
+      // Update diagnosis suggestions
       if (cleanedDx) {
         const diagnoses = cleanedDx.split(',').map(d => d.trim()).filter(Boolean);
         diagnoses.forEach(d => {
@@ -678,13 +645,13 @@ export function renderVisitForm(container, params) {
         });
       }
 
-      toast.success('Visit updated.');
-      if (printAfterSave) window.__printVisit(visitId);
+      toast.success(isEdit ? 'Visit updated successfully.' : 'Visit saved successfully.');
+      if (printAfterSave) window.__printVisit(vId);
       setTimeout(() => navigate(`/patients/${patientId}`), printAfterSave ? 500 : 0);
     } catch (err) {
       console.error(err);
       btn.disabled = false;
-      toast.error('Failed to update visit.');
+      toast.error('Failed to save visit.');
     }
   });
 } // end renderInner
@@ -697,9 +664,9 @@ function renderLastRxSidebar(patientId, currentVisitId) {
   const { queryAll: qa, queryOne: qo } = { queryAll, queryOne };
   const lastVisits = qa(`
     SELECT id, visit_date, diagnosis, attachment_idb_key FROM visits
-    WHERE patient_id=? AND id!=?
+    WHERE patient_id=? AND id!=? AND deleted=0
     ORDER BY visit_date DESC LIMIT 3
-  `, [patientId, currentVisitId || 0]);
+  `, [patientId, currentVisitId || '']);
 
   if (!lastVisits.length) return `<p class="text-sm text-muted">No previous prescriptions.</p>`;
 

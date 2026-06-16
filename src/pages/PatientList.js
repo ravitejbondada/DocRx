@@ -64,7 +64,8 @@ export function renderPatientList(container) {
       results = queryAll(`
         SELECT p.id, p.patient_code, p.full_name, p.age, p.gender, p.phone, p.blood_group,
                MAX(v.visit_date) as last_visit
-        FROM patients p LEFT JOIN visits v ON v.patient_id = p.id
+        FROM patients p LEFT JOIN visits v ON v.patient_id = p.id AND v.deleted = 0
+        WHERE p.deleted = 0
         GROUP BY p.id ORDER BY p.created_at DESC LIMIT 50
       `);
     } else {
@@ -72,10 +73,11 @@ export function renderPatientList(container) {
       results = queryAll(`
         SELECT p.id, p.patient_code, p.full_name, p.age, p.gender, p.phone, p.blood_group,
                MAX(v.visit_date) as last_visit
-        FROM patients p LEFT JOIN visits v ON v.patient_id = p.id
-        WHERE p.full_name LIKE ? COLLATE NOCASE
-           OR p.phone LIKE ?
-           OR p.patient_code LIKE ?
+        FROM patients p LEFT JOIN visits v ON v.patient_id = p.id AND v.deleted = 0
+        WHERE p.deleted = 0
+          AND (p.full_name LIKE ? COLLATE NOCASE
+            OR p.phone LIKE ?
+            OR p.patient_code LIKE ?)
         GROUP BY p.id ORDER BY p.full_name COLLATE NOCASE ASC LIMIT 50
       `, [like, like, like]);
     }

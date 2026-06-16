@@ -50,9 +50,9 @@ export function renderFinance(container) {
     const rows = queryAll(`
       SELECT v.id, v.visit_date, v.visit_type, v.fee, p.patient_code, p.full_name 
       FROM visits v 
-      JOIN patients p ON v.patient_id = p.id 
-      WHERE ${dateCondition} 
-      ORDER BY v.visit_date DESC, v.id DESC
+      JOIN patients p ON v.patient_id = p.id AND p.deleted = 0
+      WHERE ${dateCondition} AND v.deleted = 0
+      ORDER BY v.visit_date DESC, v.created_at DESC
     `, params);
 
     let totalRev = 0;

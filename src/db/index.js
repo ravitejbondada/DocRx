@@ -65,6 +65,260 @@ async function loadPersistedDB(SQL) {
 }
 
 // ── Run migrations ────────────────────────────────────────────
+function migrateToV3(db) {
+  console.log('DocRx: Migrating database to version 3 (UUID and Soft Deletes)...');
+  
+  // 1. Create temporary tables
+  db.run(`
+    CREATE TABLE IF NOT EXISTS patients_new (
+      id                      TEXT     PRIMARY KEY,
+      patient_code            TEXT     UNIQUE NOT NULL,
+      full_name               TEXT     NOT NULL,
+      dob                     DATE,
+      age                     INTEGER  NOT NULL,
+      gender                  TEXT     NOT NULL CHECK (gender IN ('M','F','Other')),
+      phone                   TEXT     NOT NULL,
+      address                 TEXT,
+      blood_group             TEXT     CHECK (blood_group IN ('A+','A-','B+','B-','O+','O-','AB+','AB-','')),
+      allergies               TEXT,
+      chronic_conditions      TEXT,
+      emergency_contact_name  TEXT,
+      emergency_contact_phone TEXT,
+      notes                   TEXT,
+      created_at              DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
+      updated_at              DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
+      deleted                 INTEGER  NOT NULL DEFAULT 0,
+      deleted_at              DATETIME
+    );
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS visits_new (
+      id              TEXT     PRIMARY KEY,
+      patient_id      TEXT     NOT NULL REFERENCES patients_new(id) ON DELETE CASCADE,
+      visit_date      DATE     NOT NULL DEFAULT (date('now','localtime')),
+      chief_complaint TEXT     NOT NULL,
+      diagnosis       TEXT,
+      clinical_notes  TEXT,
+      bp              TEXT,
+      temperature     REAL,
+      weight          REAL,
+      height          REAL,
+      bmi             REAL,
+      spo2            INTEGER,
+      pulse           INTEGER,
+      visit_type      TEXT     NOT NULL DEFAULT 'New' CHECK (visit_type IN ('New','Follow-up')),
+      follow_up_date  DATE,
+      fee             INTEGER  DEFAULT 0,
+      attachment_idb_key TEXT,
+      created_at      DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
+      updated_at      DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
+      deleted         INTEGER  NOT NULL DEFAULT 0,
+      deleted_at      DATETIME
+    );
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS prescriptions_new (
+      id            TEXT PRIMARY KEY,
+      visit_id      TEXT NOT NULL REFERENCES visits_new(id) ON DELETE CASCADE,
+      medicine_name TEXT    NOT NULL,
+      dosage        TEXT,
+      frequency     TEXT,
+      route         TEXT,
+      duration      TEXT,
+      instructions  TEXT,
+      sort_order    INTEGER DEFAULT 0,
+      updated_at    DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
+      deleted       INTEGER  NOT NULL DEFAULT 0,
+      deleted_at    DATETIME
+    );
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS diagnostic_tests_new (
+      id            TEXT PRIMARY KEY,
+      visit_id      TEXT NOT NULL REFERENCES visits_new(id) ON DELETE CASCADE,
+      test_name     TEXT    NOT NULL,
+      instructions  TEXT,
+      urgency       TEXT    DEFAULT 'Routine' CHECK (urgency IN ('Routine','Urgent')),
+      result_notes  TEXT,
+      result_date   DATE,
+      updated_at    DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
+      deleted       INTEGER  NOT NULL DEFAULT 0,
+      deleted_at    DATETIME
+    );
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS pharmacies_new (
+      id            TEXT PRIMARY KEY,
+      name          TEXT NOT NULL,
+      address       TEXT,
+      phone         TEXT,
+      is_default    INTEGER DEFAULT 0,
+      updated_at    DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
+      deleted       INTEGER  NOT NULL DEFAULT 0,
+      deleted_at    DATETIME
+    );
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS diagnostic_centers_new (
+      id            TEXT PRIMARY KEY,
+      name          TEXT NOT NULL,
+      address       TEXT,
+      phone         TEXT,
+      is_default    INTEGER DEFAULT 0,
+      updated_at    DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
+      deleted       INTEGER  NOT NULL DEFAULT 0,
+      deleted_at    DATETIME
+    );
+  `);
+
+  const queryRows = (sql) => {
+    const res = db.exec(sql);
+    if (!res.length) return [];
+    const { columns, values } = res[0];
+    return values.map(row => {
+      const obj = {};
+      columns.forEach((col, i) => { obj[col] = row[i]; });
+      return obj;
+    });
+  };
+
+  // 2. Fetch and Migrate Patients
+  const patients = queryRows("SELECT * FROM patients");
+  const patientMap = {}; // old_id -> new_uuid
+  const patStmt = db.prepare(`
+    INSERT INTO patients_new (id, patient_code, full_name, dob, age, gender, phone, address, blood_group, allergies, chronic_conditions, emergency_contact_name, emergency_contact_phone, notes, created_at, updated_at, deleted)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+  `);
+  for (const p of patients) {
+    const uuid = crypto.randomUUID();
+    patientMap[p.id] = uuid;
+    patStmt.run([
+      uuid, p.patient_code, p.full_name, p.dob, p.age, p.gender, p.phone, p.address,
+      p.blood_group, p.allergies, p.chronic_conditions, p.emergency_contact_name,
+      p.emergency_contact_phone, p.notes, p.created_at, p.created_at
+    ]);
+  }
+  patStmt.free();
+
+  // 3. Fetch and Migrate Visits
+  const visits = queryRows("SELECT * FROM visits");
+  const visitMap = {}; // old_id -> new_uuid
+  const visStmt = db.prepare(`
+    INSERT INTO visits_new (id, patient_id, visit_date, chief_complaint, diagnosis, clinical_notes, bp, temperature, weight, height, bmi, spo2, pulse, visit_type, follow_up_date, fee, attachment_idb_key, created_at, updated_at, deleted)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+  `);
+  for (const v of visits) {
+    const uuid = crypto.randomUUID();
+    visitMap[v.id] = uuid;
+    const newPatientId = patientMap[v.patient_id];
+    if (newPatientId) {
+      visStmt.run([
+        uuid, newPatientId, v.visit_date, v.chief_complaint, v.diagnosis, v.clinical_notes,
+        v.bp, v.temperature, v.weight, v.height, v.bmi, v.spo2, v.pulse, v.visit_type,
+        v.follow_up_date, v.fee || 0, v.attachment_idb_key || null, v.created_at, v.updated_at || v.created_at
+      ]);
+    }
+  }
+  visStmt.free();
+
+  // 4. Fetch and Migrate Prescriptions
+  const prescriptions = queryRows("SELECT * FROM prescriptions");
+  const rxStmt = db.prepare(`
+    INSERT INTO prescriptions_new (id, visit_id, medicine_name, dosage, frequency, route, duration, instructions, sort_order, updated_at, deleted)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+  `);
+  for (const r of prescriptions) {
+    const uuid = crypto.randomUUID();
+    const newVisitId = visitMap[r.visit_id];
+    if (newVisitId) {
+      rxStmt.run([
+        uuid, newVisitId, r.medicine_name, r.dosage, r.frequency, r.route, r.duration, r.instructions, r.sort_order || 0, r.created_at || r.updated_at || (new Date().toISOString())
+      ]);
+    }
+  }
+  rxStmt.free();
+
+  // 5. Fetch and Migrate Diagnostic Tests
+  const tests = queryRows("SELECT * FROM diagnostic_tests");
+  const testStmt = db.prepare(`
+    INSERT INTO diagnostic_tests_new (id, visit_id, test_name, instructions, urgency, result_notes, result_date, updated_at, deleted)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+  `);
+  for (const t of tests) {
+    const uuid = crypto.randomUUID();
+    const newVisitId = visitMap[t.visit_id];
+    if (newVisitId) {
+      testStmt.run([
+        uuid, newVisitId, t.test_name, t.instructions, t.urgency || 'Routine', t.result_notes, t.result_date, t.created_at || t.updated_at || (new Date().toISOString())
+      ]);
+    }
+  }
+  testStmt.free();
+
+  // 6. Fetch and Migrate Pharmacies (if pharmacies table exists)
+  try {
+    const pharmacies = queryRows("SELECT * FROM pharmacies");
+    const pharStmt = db.prepare(`
+      INSERT INTO pharmacies_new (id, name, address, phone, is_default, updated_at, deleted)
+      VALUES (?, ?, ?, ?, ?, ?, 0)
+    `);
+    for (const ph of pharmacies) {
+      const uuid = crypto.randomUUID();
+      pharStmt.run([uuid, ph.name, ph.address, ph.phone, ph.is_default || 0, new Date().toISOString()]);
+    }
+    pharStmt.free();
+  } catch (e) {
+    console.log("No existing pharmacies to migrate.");
+  }
+
+  // 7. Fetch and Migrate Diagnostic Centers (if exists)
+  try {
+    const centers = queryRows("SELECT * FROM diagnostic_centers");
+    const ctrStmt = db.prepare(`
+      INSERT INTO diagnostic_centers_new (id, name, address, phone, is_default, updated_at, deleted)
+      VALUES (?, ?, ?, ?, ?, ?, 0)
+    `);
+    for (const c of centers) {
+      const uuid = crypto.randomUUID();
+      ctrStmt.run([uuid, c.name, c.address, c.phone, c.is_default || 0, new Date().toISOString()]);
+    }
+    ctrStmt.free();
+  } catch (e) {
+    console.log("No existing diagnostic centers to migrate.");
+  }
+
+  // 8. Swap Tables
+  db.run("DROP TABLE IF EXISTS prescriptions");
+  db.run("DROP TABLE IF EXISTS diagnostic_tests");
+  db.run("DROP TABLE IF EXISTS visits");
+  db.run("DROP TABLE IF EXISTS patients");
+  db.run("DROP TABLE IF EXISTS pharmacies");
+  db.run("DROP TABLE IF EXISTS diagnostic_centers");
+
+  db.run("ALTER TABLE patients_new RENAME TO patients");
+  db.run("ALTER TABLE visits_new RENAME TO visits");
+  db.run("ALTER TABLE prescriptions_new RENAME TO prescriptions");
+  db.run("ALTER TABLE diagnostic_tests_new RENAME TO diagnostic_tests");
+  db.run("ALTER TABLE pharmacies_new RENAME TO pharmacies");
+  db.run("ALTER TABLE diagnostic_centers_new RENAME TO diagnostic_centers");
+
+  // Re-create indexes
+  db.run("CREATE INDEX IF NOT EXISTS idx_patients_phone ON patients(phone)");
+  db.run("CREATE INDEX IF NOT EXISTS idx_patients_name ON patients(full_name COLLATE NOCASE)");
+  db.run("CREATE INDEX IF NOT EXISTS idx_patients_code ON patients(patient_code)");
+  db.run("CREATE INDEX IF NOT EXISTS idx_visits_patient ON visits(patient_id)");
+  db.run("CREATE INDEX IF NOT EXISTS idx_visits_date ON visits(visit_date)");
+  db.run("CREATE INDEX IF NOT EXISTS idx_rx_visit ON prescriptions(visit_id)");
+  db.run("CREATE INDEX IF NOT EXISTS idx_tests_visit ON diagnostic_tests(visit_id)");
+
+  console.log("DocRx: Database migration to version 3 completed successfully!");
+}
+
 function runMigrations(db) {
   // Add first_name and last_name if missing (schema update)
   try {
@@ -89,7 +343,14 @@ function runMigrations(db) {
   let version = row[0].values[0][0];
   while (version < SCHEMA_VERSION) {
     version++;
-    if (MIGRATIONS[version]) {
+    if (version === 3) {
+      try {
+        migrateToV3(db);
+        db.run(`UPDATE settings SET schema_version=3 WHERE id=1`);
+      } catch (e) {
+        console.error("Failed to migrate to version 3", e);
+      }
+    } else if (MIGRATIONS[version]) {
       const statements = MIGRATIONS[version]
         .split(';')
         .map(s => s.trim())

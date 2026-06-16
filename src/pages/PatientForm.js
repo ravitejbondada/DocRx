@@ -8,7 +8,7 @@ import { toast } from '../components/Toast.js';
 export function renderPatientForm(container, params = {}) {
   const { id } = params;
   const isEdit = !!id;
-  const existing = isEdit ? queryOne('SELECT * FROM patients WHERE id=?', [id]) : null;
+  const existing = isEdit ? queryOne('SELECT * FROM patients WHERE id=? AND deleted=0', [id]) : null;
 
   if (isEdit && !existing) {
     container.innerHTML = `<div class="empty-state"><h3>Patient not found</h3></div>`;
@@ -18,7 +18,7 @@ export function renderPatientForm(container, params = {}) {
   // Next patient code
   let nextCode = 'PAT-0001';
   if (!isEdit) {
-    const last = queryOne("SELECT patient_code FROM patients ORDER BY id DESC LIMIT 1");
+    const last = queryOne("SELECT patient_code FROM patients ORDER BY patient_code DESC LIMIT 1");
     if (last?.patient_code) {
       const n = parseInt(last.patient_code.replace('PAT-', ''), 10) + 1;
       nextCode = 'PAT-' + String(n).padStart(4, '0');
@@ -157,10 +157,11 @@ export function renderPatientForm(container, params = {}) {
   window.__deletePatient = async (pId) => {
     if (!confirm('WARNING: Are you sure you want to completely delete this patient and ALL their visits, prescriptions, and tests? This CANNOT be undone!')) return;
     const { run } = await import('../db/index.js');
-    run('DELETE FROM prescriptions WHERE visit_id IN (SELECT id FROM visits WHERE patient_id=?)', [pId]);
-    run('DELETE FROM diagnostic_tests WHERE visit_id IN (SELECT id FROM visits WHERE patient_id=?)', [pId]);
-    run('DELETE FROM visits WHERE patient_id=?', [pId]);
-    run('DELETE FROM patients WHERE id=?', [pId]);
+    const now = new Date().toISOString();
+    run('UPDATE prescriptions SET deleted=1, deleted_at=? WHERE visit_id IN (SELECT id FROM visits WHERE patient_id=?)', [now, pId]);
+    run('UPDATE diagnostic_tests SET deleted=1, deleted_at=? WHERE visit_id IN (SELECT id FROM visits WHERE patient_id=?)', [now, pId]);
+    run('UPDATE visits SET deleted=1, deleted_at=? WHERE patient_id=?', [now, pId]);
+    run('UPDATE patients SET deleted=1, deleted_at=? WHERE id=?', [now, pId]);
     window.__navigate('/patients');
   };
 
@@ -172,8 +173,8 @@ export function renderPatientForm(container, params = {}) {
     if (ph.length !== 10) { hideDup(); return; }
     dupCheckTimeout = setTimeout(() => {
       const dups = queryAll(
-        'SELECT id, full_name, patient_code FROM patients WHERE phone=? AND id!=?',
-        [ph, id || 0]
+        'SELECT id, full_name, patient_code FROM patients WHERE phone=? AND id!=? AND deleted=0',
+        [ph, id || '']
       );
       if (dups.length > 0) {
         showDup(dups, ph);
@@ -207,7 +208,7 @@ export function renderPatientForm(container, params = {}) {
     if (!gender) { toast.error('Please select a gender.'); return; }
 
     // Check dup again
-    const dups = queryAll('SELECT id FROM patients WHERE phone=? AND id!=?', [phone, id || 0]);
+    const dups = queryAll('SELECT id FROM patients WHERE phone=? AND id!=? AND deleted=0', [phone, id || '']);
     if (dups.length > 0 && !isEdit) {
       if (!confirm(`Warning: ${dups.length} patient(s) already exist with the phone number ${phone}.\n\nDo you still want to register this new patient?`)) {
         return;
@@ -221,7 +222,7 @@ export function renderPatientForm(container, params = {}) {
       if (isEdit) {
         run(`UPDATE patients SET full_name=?,phone=?,age=?,gender=?,dob=?,blood_group=?,
              address=?,allergies=?,chronic_conditions=?,emergency_contact_name=?,
-             emergency_contact_phone=?,notes=? WHERE id=?`,
+             emergency_contact_phone=?,notes=?,updated_at=datetime('now','localtime') WHERE id=?`,
           [full_name, phone, age, gender,
            getValue('#dob') || null, getValue('#blood_group') || null,
            getValue('#address') || null, getValue('#allergies') || null,
@@ -232,12 +233,13 @@ export function renderPatientForm(container, params = {}) {
         toast.success('Patient record updated.');
         navigate(`/patients/${id}`);
       } else {
-        const newId = runGetId(
-          `INSERT INTO patients (patient_code, full_name, phone, age, gender, dob, blood_group,
+        const newId = crypto.randomUUID();
+        run(
+          `INSERT INTO patients (id, patient_code, full_name, phone, age, gender, dob, blood_group,
            address, allergies, chronic_conditions, emergency_contact_name,
-           emergency_contact_phone, notes)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-          [nextCode, full_name, phone, age, gender,
+           emergency_contact_phone, notes, updated_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now','localtime'))`,
+          [newId, nextCode, full_name, phone, age, gender,
            getValue('#dob') || null, getValue('#blood_group') || null,
            getValue('#address') || null, getValue('#allergies') || null,
            getValue('#chronic_conditions') || null,

@@ -8,8 +8,8 @@ import { showModal } from '../components/Modal.js';
 
 export function renderSettings(container) {
   const s = queryOne('SELECT * FROM settings WHERE id=1') || {};
-  const pharmacies = queryAll('SELECT * FROM pharmacies ORDER BY id ASC');
-  const diagCenters = queryAll('SELECT * FROM diagnostic_centers ORDER BY id ASC');
+  const pharmacies = queryAll('SELECT * FROM pharmacies WHERE deleted=0 ORDER BY name ASC');
+  const diagCenters = queryAll('SELECT * FROM diagnostic_centers WHERE deleted=0 ORDER BY name ASC');
   const params = getParams();
   const activeTab = params.tab || 'clinic';
 
@@ -379,10 +379,10 @@ export function renderSettings(container) {
         const phone = overlay.querySelector('#partner-phone-input').value.trim();
 
         // If it's the first one, make it default
-        const count = queryOne(`SELECT COUNT(*) as c FROM ${table}`).c;
+        const count = queryOne(`SELECT COUNT(*) as c FROM ${table} WHERE deleted=0`).c;
         const isDefault = count === 0 ? 1 : 0;
         
-        run(`INSERT INTO ${table} (name, address, phone, is_default) VALUES (?, ?, ?, ?)`, [name, address, phone, isDefault]);
+        run(`INSERT INTO ${table} (id, name, address, phone, is_default, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now','localtime'))`, [crypto.randomUUID(), name, address, phone, isDefault]);
         toast.success(`${typeLabel} added.`);
         navigate('/settings?tab=partners');
       }
@@ -391,14 +391,14 @@ export function renderSettings(container) {
 
   window.__deletePartner = (table, id) => {
     if (!confirm('Are you sure you want to delete this partner?')) return;
-    run(`DELETE FROM ${table} WHERE id=?`, [id]);
+    run(`UPDATE ${table} SET deleted=1, deleted_at=datetime('now','localtime') WHERE id=?`, [id]);
     navigate('/settings?tab=partners');
   };
 
   window.__editPartner = (table, id) => {
     const isPharm = table === 'pharmacies';
     const typeLabel = isPharm ? 'Medical Shop (Pharmacy)' : 'Diagnostic Center';
-    const partner = queryOne(`SELECT * FROM ${table} WHERE id=?`, [id]);
+    const partner = queryOne(`SELECT * FROM ${table} WHERE id=? AND deleted=0`, [id]);
     if (!partner) return;
 
     const bodyHtml = `
@@ -432,7 +432,7 @@ export function renderSettings(container) {
         const address = overlay.querySelector('#partner-address-input').value.trim();
         const phone = overlay.querySelector('#partner-phone-input').value.trim();
 
-        run(`UPDATE ${table} SET name=?, address=?, phone=? WHERE id=?`, [name, address, phone, id]);
+        run(`UPDATE ${table} SET name=?, address=?, phone=?, updated_at=datetime('now','localtime') WHERE id=?`, [name, address, phone, id]);
         toast.success(`${typeLabel} updated.`);
         navigate('/settings?tab=partners');
       }
@@ -440,8 +440,8 @@ export function renderSettings(container) {
   };
 
   window.__setDefaultPartner = (table, id) => {
-    run(`UPDATE ${table} SET is_default=0`);
-    run(`UPDATE ${table} SET is_default=1 WHERE id=?`, [id]);
+    run(`UPDATE ${table} SET is_default=0 WHERE deleted=0`);
+    run(`UPDATE ${table} SET is_default=1, updated_at=datetime('now','localtime') WHERE id=?`, [id]);
     toast.success('Default updated.');
   };
 }

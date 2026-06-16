@@ -5,17 +5,17 @@ import { queryOne, queryAll } from '../db/index.js';
 import { showModal } from '../components/Modal.js';
 
 export function _executePrint(visitId, pharmacyId = null, diagCenterId = null) {
-  const visit   = queryOne('SELECT * FROM visits WHERE id=?', [visitId]);
-  const patient = queryOne('SELECT * FROM patients WHERE id=?', [visit.patient_id]);
+  const visit   = queryOne('SELECT * FROM visits WHERE id=? AND deleted=0', [visitId]);
+  const patient = queryOne('SELECT * FROM patients WHERE id=? AND deleted=0', [visit.patient_id]);
   const settings= queryOne('SELECT * FROM settings WHERE id=1') || {};
-  const rxItems = queryAll('SELECT * FROM prescriptions WHERE visit_id=? ORDER BY sort_order ASC', [visitId]);
-  const tests   = queryAll('SELECT * FROM diagnostic_tests WHERE visit_id=?', [visitId]);
+  const rxItems = queryAll('SELECT * FROM prescriptions WHERE visit_id=? AND deleted=0 ORDER BY sort_order ASC', [visitId]);
+  const tests   = queryAll('SELECT * FROM diagnostic_tests WHERE visit_id=? AND deleted=0', [visitId]);
 
   let pharmacy = null;
-  if (pharmacyId) pharmacy = queryOne('SELECT * FROM pharmacies WHERE id=?', [pharmacyId]);
+  if (pharmacyId) pharmacy = queryOne('SELECT * FROM pharmacies WHERE id=? AND deleted=0', [pharmacyId]);
   
   let diagCenter = null;
-  if (diagCenterId) diagCenter = queryOne('SELECT * FROM diagnostic_centers WHERE id=?', [diagCenterId]);
+  if (diagCenterId) diagCenter = queryOne('SELECT * FROM diagnostic_centers WHERE id=? AND deleted=0', [diagCenterId]);
 
   const age = patient.dob ? calcAge(patient.dob) : patient.age;
 
@@ -243,8 +243,8 @@ export function _executePrint(visitId, pharmacyId = null, diagCenterId = null) {
 
 // Expose globally for onclick
 window.__printVisit = (visitId) => {
-  const pharmacies = queryAll('SELECT * FROM pharmacies ORDER BY name ASC');
-  const diagCenters = queryAll('SELECT * FROM diagnostic_centers ORDER BY name ASC');
+  const pharmacies = queryAll('SELECT * FROM pharmacies WHERE deleted=0 ORDER BY name ASC');
+  const diagCenters = queryAll('SELECT * FROM diagnostic_centers WHERE deleted=0 ORDER BY name ASC');
   
   if (pharmacies.length === 0 && diagCenters.length === 0) {
     return _executePrint(visitId, null, null);

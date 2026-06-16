@@ -2,7 +2,7 @@
 // DocRx — Database Schema & DDL
 // ============================================================
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const CREATE_TABLES_SQL = `
 PRAGMA journal_mode=WAL;
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS settings (
 
 -- ── patients ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS patients (
-  id                      INTEGER  PRIMARY KEY AUTOINCREMENT,
+  id                      TEXT     PRIMARY KEY,
   patient_code            TEXT     UNIQUE NOT NULL,
   full_name               TEXT     NOT NULL,
   dob                     DATE,
@@ -42,7 +42,10 @@ CREATE TABLE IF NOT EXISTS patients (
   emergency_contact_name  TEXT,
   emergency_contact_phone TEXT,
   notes                   TEXT,
-  created_at              DATETIME NOT NULL DEFAULT (datetime('now','localtime'))
+  created_at              DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
+  updated_at              DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
+  deleted                 INTEGER  NOT NULL DEFAULT 0,
+  deleted_at              DATETIME
 );
 CREATE INDEX IF NOT EXISTS idx_patients_phone ON patients(phone);
 CREATE INDEX IF NOT EXISTS idx_patients_name  ON patients(full_name COLLATE NOCASE);
@@ -50,8 +53,8 @@ CREATE INDEX IF NOT EXISTS idx_patients_code  ON patients(patient_code);
 
 -- ── visits ───────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS visits (
-  id              INTEGER  PRIMARY KEY AUTOINCREMENT,
-  patient_id      INTEGER  NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  id              TEXT     PRIMARY KEY,
+  patient_id      TEXT     NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   visit_date      DATE     NOT NULL DEFAULT (date('now','localtime')),
   chief_complaint TEXT     NOT NULL,
   diagnosis       TEXT,
@@ -68,34 +71,42 @@ CREATE TABLE IF NOT EXISTS visits (
   fee             INTEGER  DEFAULT 0,
   attachment_idb_key TEXT,
   created_at      DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
-  updated_at      DATETIME NOT NULL DEFAULT (datetime('now','localtime'))
+  updated_at      DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
+  deleted         INTEGER  NOT NULL DEFAULT 0,
+  deleted_at      DATETIME
 );
 CREATE INDEX IF NOT EXISTS idx_visits_patient  ON visits(patient_id);
 CREATE INDEX IF NOT EXISTS idx_visits_date     ON visits(visit_date);
 
 -- ── prescriptions ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS prescriptions (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  visit_id      INTEGER NOT NULL REFERENCES visits(id) ON DELETE CASCADE,
+  id            TEXT PRIMARY KEY,
+  visit_id      TEXT NOT NULL REFERENCES visits(id) ON DELETE CASCADE,
   medicine_name TEXT    NOT NULL,
   dosage        TEXT,
   frequency     TEXT,
   route         TEXT,
   duration      TEXT,
   instructions  TEXT,
-  sort_order    INTEGER DEFAULT 0
+  sort_order    INTEGER DEFAULT 0,
+  updated_at    DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
+  deleted       INTEGER  NOT NULL DEFAULT 0,
+  deleted_at    DATETIME
 );
 CREATE INDEX IF NOT EXISTS idx_rx_visit ON prescriptions(visit_id);
 
 -- ── diagnostic_tests ─────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS diagnostic_tests (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  visit_id      INTEGER NOT NULL REFERENCES visits(id) ON DELETE CASCADE,
+  id            TEXT PRIMARY KEY,
+  visit_id      TEXT NOT NULL REFERENCES visits(id) ON DELETE CASCADE,
   test_name     TEXT    NOT NULL,
   instructions  TEXT,
   urgency       TEXT    DEFAULT 'Routine' CHECK (urgency IN ('Routine','Urgent')),
   result_notes  TEXT,
-  result_date   DATE
+  result_date   DATE,
+  updated_at    DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
+  deleted       INTEGER  NOT NULL DEFAULT 0,
+  deleted_at    DATETIME
 );
 CREATE INDEX IF NOT EXISTS idx_tests_visit ON diagnostic_tests(visit_id);
 
@@ -130,20 +141,26 @@ CREATE TABLE IF NOT EXISTS diagnosis_suggestions (
 
 -- ── pharmacies ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS pharmacies (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  id            TEXT PRIMARY KEY,
   name          TEXT NOT NULL,
   address       TEXT,
   phone         TEXT,
-  is_default    INTEGER DEFAULT 0
+  is_default    INTEGER DEFAULT 0,
+  updated_at    DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
+  deleted       INTEGER  NOT NULL DEFAULT 0,
+  deleted_at    DATETIME
 );
 
 -- ── diagnostic_centers ───────────────────────────────────────
 CREATE TABLE IF NOT EXISTS diagnostic_centers (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  id            TEXT PRIMARY KEY,
   name          TEXT NOT NULL,
   address       TEXT,
   phone         TEXT,
-  is_default    INTEGER DEFAULT 0
+  is_default    INTEGER DEFAULT 0,
+  updated_at    DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
+  deleted       INTEGER  NOT NULL DEFAULT 0,
+  deleted_at    DATETIME
 );
 `;
 
@@ -166,5 +183,6 @@ export const MIGRATIONS = {
       phone         TEXT,
       is_default    INTEGER DEFAULT 0
     );
-  `
+  `,
+  3: `-- Handled in JS inside index.js due to UUID mapping requirements --`
 };

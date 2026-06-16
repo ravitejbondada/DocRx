@@ -9,18 +9,19 @@ export function renderDashboard(container) {
   const thisMonthStart = today.slice(0, 7) + '-01';
 
   // Analytics
-  const totalPatients = queryOne('SELECT COUNT(*) as c FROM patients')?.c || 0;
+  const totalPatients = queryOne('SELECT COUNT(*) as c FROM patients WHERE deleted=0')?.c || 0;
   const visitsThisMonth = queryOne(
-    "SELECT COUNT(*) as c FROM visits WHERE visit_date >= ?", [thisMonthStart])?.c || 0;
+    "SELECT COUNT(*) as c FROM visits WHERE visit_date >= ? AND deleted=0", [thisMonthStart])?.c || 0;
   const visitsToday = queryOne(
-    "SELECT COUNT(*) as c FROM visits WHERE visit_date = ?", [today])?.c || 0;
+    "SELECT COUNT(*) as c FROM visits WHERE visit_date = ? AND deleted=0", [today])?.c || 0;
 
   // Recent patients (last 10 by most recent visit)
   const recentPatients = queryAll(`
     SELECT p.id, p.patient_code, p.full_name, p.age, p.gender, p.phone,
            MAX(v.visit_date) as last_visit
     FROM patients p
-    LEFT JOIN visits v ON v.patient_id = p.id
+    LEFT JOIN visits v ON v.patient_id = p.id AND v.deleted = 0
+    WHERE p.deleted = 0
     GROUP BY p.id
     ORDER BY last_visit DESC, p.created_at DESC
     LIMIT 10
@@ -31,13 +32,15 @@ export function renderDashboard(container) {
     SELECT v.follow_up_date, v.id as visit_id, v.diagnosis,
            p.id as patient_id, p.full_name, p.patient_code, p.phone
     FROM visits v
-    JOIN patients p ON p.id = v.patient_id
-    WHERE v.follow_up_date IS NOT NULL
+    JOIN patients p ON p.id = v.patient_id AND p.deleted = 0
+    WHERE v.deleted = 0
+      AND v.follow_up_date IS NOT NULL
       AND v.follow_up_date <= ?
       AND NOT EXISTS (
         SELECT 1 FROM visits v2
         WHERE v2.patient_id = v.patient_id
           AND v2.visit_date > v.visit_date
+          AND v2.deleted = 0
       )
     ORDER BY v.follow_up_date ASC
     LIMIT 8
