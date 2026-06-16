@@ -98,7 +98,8 @@ export function renderPatientList(container) {
     }
 
     resultsArea.innerHTML = `
-      <div class="table-wrap fade-in">
+      <!-- Desktop Table -->
+      <div class="table-wrap fade-in hide-on-mobile">
         <table>
           <thead>
             <tr>
@@ -141,6 +142,32 @@ export function renderPatientList(container) {
             `).join('')}
           </tbody>
         </table>
+      </div>
+
+      <!-- Mobile List Cards -->
+      <div class="mobile-patient-list fade-in hide-on-desktop">
+        ${patients.map(p => `
+          <div class="patient-mobile-card" onclick="window.__navigate('/patients/${p.id}')">
+            <div class="flex items-center gap-3">
+              <div class="recent-patient-avatar" style="width:36px;height:36px;font-size:0.85rem;flex-shrink:0">${getInitials(p.full_name)}</div>
+              <div style="flex:1; min-width:0;">
+                <div class="font-semibold text-sm truncate" style="color:var(--text-primary)">${highlight(p.full_name, query)}</div>
+                <div class="text-xs text-muted font-mono mt-0.5">${highlight(p.patient_code, query)}</div>
+              </div>
+              ${p.blood_group ? `<span class="badge badge-teal" style="font-size:0.7rem;padding:2px 6px;">${p.blood_group}</span>` : ''}
+            </div>
+            <div class="patient-card-body mt-3 pt-3" style="border-top: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div class="text-xs text-tertiary">Phone: <span class="font-mono" style="color:var(--text-secondary)">${highlight(p.phone, query)}</span></div>
+                <div class="text-xs text-tertiary mt-1">Age/Gen: <span style="color:var(--text-secondary)">${p.age}y · ${genderLabel(p.gender).slice(0, 1)}</span></div>
+              </div>
+              <div style="text-align: right">
+                <div class="text-xs text-tertiary">Last Visit</div>
+                <div class="text-xs font-semibold mt-1" style="color:var(--text-secondary)">${p.last_visit ? formatDate(p.last_visit) : 'None'}</div>
+              </div>
+            </div>
+          </div>
+        `).join('')}
       </div>
       <p class="text-xs text-tertiary mt-3" style="text-align:right">${patients.length} result${patients.length !== 1 ? 's' : ''}</p>
     `;

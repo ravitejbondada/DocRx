@@ -55,19 +55,21 @@ export function renderSettings(container) {
     <div class="page-content slide-up" style="max-width:760px">
 
       <!-- Tab Nav -->
-      <div class="flex gap-1 mb-6" style="background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius-lg);padding:4px;width:fit-content">
-        ${[
-          { id: 'clinic',   label: 'Clinic Info' },
-          { id: 'partners', label: 'Partners & Print' },
-          { id: 'security', label: 'Security' },
-          { id: 'backup',   label: 'Backup & Restore' },
-          { id: 'storage',  label: 'Storage' },
-        ].map(tab => `
-          <button class="btn ${activeTab === tab.id ? 'btn-primary' : 'btn-ghost'} btn-sm"
-                  onclick="window.__switchTab('${tab.id}')" id="tab-${tab.id}">
-            ${tab.label}
-          </button>
-        `).join('')}
+      <div class="settings-tabs-wrap">
+        <div class="flex gap-1 mb-6 settings-tabs" style="background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius-lg);padding:4px;width:fit-content">
+          ${[
+            { id: 'clinic',   label: 'Clinic Info' },
+            { id: 'partners', label: 'Partners & Print' },
+            { id: 'security', label: 'Security' },
+            { id: 'backup',   label: 'Backup & Restore' },
+            { id: 'storage',  label: 'Storage' },
+          ].map(tab => `
+            <button class="btn ${activeTab === tab.id ? 'btn-primary' : 'btn-ghost'} btn-sm" style="flex-shrink:0"
+                    onclick="window.__switchTab('${tab.id}')" id="tab-${tab.id}">
+              ${tab.label}
+            </button>
+          `).join('')}
+        </div>
       </div>
 
       <!-- Clinic Info Tab -->
@@ -127,26 +129,28 @@ export function renderSettings(container) {
             <button class="btn btn-secondary btn-sm" onclick="window.__addPartner('pharmacies')">Add Pharmacy</button>
           </div>
           ${pharmacies.length ? `
-          <table class="table w-full">
-            <thead><tr><th>Name</th><th>Location / Phone</th><th>Default</th><th>Action</th></tr></thead>
-            <tbody>
-              ${pharmacies.map(p => `
-                <tr>
-                  <td class="font-semibold">${e(p.name)}</td>
-                  <td class="text-sm text-muted">${e(p.address)} <br/> ${e(p.phone)}</td>
-                  <td>
-                    <input type="radio" name="default_pharmacy" value="${p.id}" ${p.is_default ? 'checked' : ''} onchange="window.__setDefaultPartner('pharmacies', ${p.id})">
-                  </td>
-                  <td>
-                    <div style="display:flex; gap:8px;">
-                      <button class="btn btn-secondary btn-sm" onclick="window.__editPartner('pharmacies', ${p.id})">Edit</button>
-                      <button class="btn btn-danger btn-sm" onclick="window.__deletePartner('pharmacies', ${p.id})">Delete</button>
-                    </div>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
+          <div class="table-wrap">
+            <table class="table w-full">
+              <thead><tr><th>Name</th><th>Location / Phone</th><th>Default</th><th>Action</th></tr></thead>
+              <tbody>
+                ${pharmacies.map(p => `
+                  <tr>
+                    <td class="font-semibold">${e(p.name)}</td>
+                    <td class="text-sm text-muted">${e(p.address)} <br/> ${e(p.phone)}</td>
+                    <td>
+                      <input type="radio" name="default_pharmacy" value="${p.id}" ${p.is_default ? 'checked' : ''} onchange="window.__setDefaultPartner('pharmacies', ${p.id})">
+                    </td>
+                    <td>
+                      <div style="display:flex; gap:8px;">
+                        <button class="btn btn-secondary btn-sm" onclick="window.__editPartner('pharmacies', ${p.id})">Edit</button>
+                        <button class="btn btn-danger btn-sm" onclick="window.__deletePartner('pharmacies', ${p.id})">Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
           ` : '<p class="text-sm text-muted">No pharmacies added yet.</p>'}
         </div>
 
@@ -157,26 +161,28 @@ export function renderSettings(container) {
             <button class="btn btn-secondary btn-sm" onclick="window.__addPartner('diagnostic_centers')">Add Center</button>
           </div>
           ${diagCenters.length ? `
-          <table class="table w-full">
-            <thead><tr><th>Name</th><th>Location / Phone</th><th>Default</th><th>Action</th></tr></thead>
-            <tbody>
-              ${diagCenters.map(p => `
-                <tr>
-                  <td class="font-semibold">${e(p.name)}</td>
-                  <td class="text-sm text-muted">${e(p.address)} <br/> ${e(p.phone)}</td>
-                  <td>
-                    <input type="radio" name="default_diag" value="${p.id}" ${p.is_default ? 'checked' : ''} onchange="window.__setDefaultPartner('diagnostic_centers', ${p.id})">
-                  </td>
-                  <td>
-                    <div style="display:flex; gap:8px;">
-                      <button class="btn btn-secondary btn-sm" onclick="window.__editPartner('diagnostic_centers', ${p.id})">Edit</button>
-                      <button class="btn btn-danger btn-sm" onclick="window.__deletePartner('diagnostic_centers', ${p.id})">Delete</button>
-                    </div>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
+          <div class="table-wrap">
+            <table class="table w-full">
+              <thead><tr><th>Name</th><th>Location / Phone</th><th>Default</th><th>Action</th></tr></thead>
+              <tbody>
+                ${diagCenters.map(p => `
+                  <tr>
+                    <td class="font-semibold">${e(p.name)}</td>
+                    <td class="text-sm text-muted">${e(p.address)} <br/> ${e(p.phone)}</td>
+                    <td>
+                      <input type="radio" name="default_diag" value="${p.id}" ${p.is_default ? 'checked' : ''} onchange="window.__setDefaultPartner('diagnostic_centers', ${p.id})">
+                    </td>
+                    <td>
+                      <div style="display:flex; gap:8px;">
+                        <button class="btn btn-secondary btn-sm" onclick="window.__editPartner('diagnostic_centers', ${p.id})">Edit</button>
+                        <button class="btn btn-danger btn-sm" onclick="window.__deletePartner('diagnostic_centers', ${p.id})">Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
           ` : '<p class="text-sm text-muted">No diagnostic centers added yet.</p>'}
         </div>
       </div>
