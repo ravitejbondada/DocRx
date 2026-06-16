@@ -286,7 +286,8 @@ export function renderVisitForm(container, params) {
               <!-- Mobile Back Header -->
               <div class="hide-on-desktop mb-4" style="display:flex; align-items:center; border-bottom:1px solid var(--glass-border); padding-bottom:12px;">
                 <button type="button" class="btn btn-ghost btn-sm" onclick="window.__toggleMobilePrevRx(false)" style="padding-left:0; font-size:0.95rem;">
-                  ← Back to Visit Form
+                  <span class="hide-on-mobile">← Back to Visit Form</span>
+                  <span class="hide-on-desktop">← Back</span>
                 </button>
                 <div class="font-bold text-base" style="margin-left:auto; color:var(--text-primary);">Previous Visit Details</div>
               </div>
