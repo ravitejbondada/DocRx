@@ -89,54 +89,55 @@ export function renderDashboard(container) {
         
         <!-- Total Patients -->
         <div class="stat-card">
-          <div class="stat-card-inner">
-            <div class="stat-card-main">
+          <div class="stat-card-row">
+            <div class="stat-card-left">
               <div class="stat-icon" style="background:rgba(14,165,233,0.15)">
                 <svg fill="none" stroke="var(--sky-400)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
               </div>
-              <div class="stat-value">${totalPatients.toLocaleString()}</div>
-              <div class="stat-label">Total Patients</div>
+              <div class="stat-info">
+                <span class="stat-label">Total Patients</span>
+                <span class="stat-value">${totalPatients.toLocaleString()}</span>
+              </div>
             </div>
-            <div class="stat-card-details">
-              <div class="stat-detail-item"><span class="label">Male:</span> <strong class="val">${maleCount}</strong></div>
-              <div class="stat-detail-item"><span class="label">Female:</span> <strong class="val">${femaleCount}</strong></div>
-              ${otherCount > 0 ? `<div class="stat-detail-item"><span class="label">Other:</span> <strong class="val">${otherCount}</strong></div>` : ''}
+            <div class="stat-card-right">
+              <span class="stat-detail-text">M: <strong>${maleCount}</strong> · F: <strong>${femaleCount}</strong>${otherCount > 0 ? ` · O: <strong>${otherCount}</strong>` : ''}</span>
             </div>
           </div>
         </div>
 
         <!-- Visits This Month -->
         <div class="stat-card">
-          <div class="stat-card-inner">
-            <div class="stat-card-main">
+          <div class="stat-card-row">
+            <div class="stat-card-left">
               <div class="stat-icon" style="background:rgba(6,182,212,0.15)">
                 <svg fill="none" stroke="var(--teal-400)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
               </div>
-              <div class="stat-value">${visitsThisMonth.toLocaleString()}</div>
-              <div class="stat-label">Visits This Month</div>
+              <div class="stat-info">
+                <span class="stat-label">Visits This Month</span>
+                <span class="stat-value">${visitsThisMonth.toLocaleString()}</span>
+              </div>
             </div>
-            <div class="stat-card-details">
-              <div class="stat-detail-item"><span class="label">New:</span> <strong class="val">${newVisitsMonth}</strong></div>
-              <div class="stat-detail-item"><span class="label">Follow-up:</span> <strong class="val">${fuVisitsMonth}</strong></div>
+            <div class="stat-card-right">
+              <span class="stat-detail-text">New: <strong>${newVisitsMonth}</strong> · F/U: <strong>${fuVisitsMonth}</strong></span>
             </div>
           </div>
         </div>
 
         <!-- Visits Today -->
         <div class="stat-card">
-          <div class="stat-card-inner">
-            <div class="stat-card-main">
+          <div class="stat-card-row">
+            <div class="stat-card-left">
               <div class="stat-icon" style="background:rgba(16,185,129,0.15)">
                 <svg fill="none" stroke="var(--success)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
               </div>
-              <div class="stat-value">${visitsToday}</div>
-              <div class="stat-label">Visits Today</div>
-            </div>
-            <div class="stat-card-details">
-              <div class="stat-detail-item"><span class="label">Revenue:</span> <strong class="val" style="color:var(--emerald-400)">${revenueTodayFormatted}</strong></div>
-              <div class="stat-detail-item" style="font-size:0.75rem; color:var(--text-tertiary)">
-                ${newVisitsToday} new · ${fuVisitsToday} f/u
+              <div class="stat-info">
+                <span class="stat-label">Visits Today</span>
+                <span class="stat-value">${visitsToday}</span>
               </div>
+            </div>
+            <div class="stat-card-right">
+              <span class="stat-detail-text" style="color:var(--emerald-400);font-weight:700;margin-bottom:2px">${revenueTodayFormatted}</span>
+              <span class="stat-detail-subtext">${newVisitsToday} new · ${fuVisitsToday} f/u</span>
             </div>
           </div>
         </div>

@@ -1234,49 +1234,97 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
 }
 
 /* Stat card interior styling overrides to minimize empty desktop space */
-.stat-card-inner {
+.stat-card {
+  padding: 14px 18px !important;
+}
+.stat-card-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   width: 100%;
 }
-.stat-card-main {
+.stat-card-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.stat-card-left .stat-icon {
+  margin-bottom: 0 !important;
+  width: 36px !important;
+  height: 36px !important;
+  flex-shrink: 0;
+}
+.stat-card-left .stat-icon svg {
+  width: 18px !important;
+  height: 18px !important;
+}
+.stat-info {
   display: flex;
   flex-direction: column;
 }
-.stat-card-details {
+.stat-label {
+  font-size: 0.7rem !important;
+  color: var(--text-tertiary) !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1px;
+}
+.stat-value {
+  font-size: 1.5rem !important;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--text-primary);
+  margin-bottom: 0 !important;
+}
+.stat-card-right {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  align-items: flex-end;
   text-align: right;
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
-  padding-left: 16px;
-  margin-left: 16px;
 }
-.stat-detail-item {
-  font-size: 0.78rem;
+.stat-detail-text {
+  font-size: 0.8rem;
   color: var(--text-secondary);
   white-space: nowrap;
 }
-.stat-detail-item .label {
-  opacity: 0.8;
-  color: var(--text-tertiary);
-}
-.stat-detail-item .val {
+.stat-detail-text strong {
   color: var(--text-primary);
-  font-weight: 700;
-  margin-left: 4px;
 }
+.stat-detail-subtext {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  margin-top: 1px;
+  white-space: nowrap;
+}
+
 @media (max-width: 480px) {
-  .stat-card-inner {
-    align-items: flex-start;
+  .stat-card {
+    padding: 10px 14px !important;
   }
-  .stat-card-details {
-    padding-left: 10px;
-    margin-left: 10px;
-    gap: 4px;
+  .stat-card-left {
+    gap: 8px;
+  }
+  .stat-card-left .stat-icon {
+    width: 30px !important;
+    height: 30px !important;
+  }
+  .stat-card-left .stat-icon svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+  .stat-value {
+    font-size: 1.3rem !important;
+  }
+  .stat-detail-text {
+    font-size: 0.72rem;
+  }
+  .stat-detail-subtext {
+    font-size: 0.65rem;
   }
 }
+
 
 
 
