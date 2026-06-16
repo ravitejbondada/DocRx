@@ -30,12 +30,6 @@ export function renderPatientList(container) {
         </div>
       </div>
 
-      <!-- Alphabet Scroller (mobile) -->
-      <div id="alpha-scroller" class="hidden" style="position:fixed;right:4px;top:50%;transform:translateY(-50%);z-index:50;display:flex;flex-direction:column;gap:1px">
-        ${Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ').map(l =>
-          `<button onclick="window.__alphaScroll('${l}')" style="font-size:0.55rem;font-weight:700;color:var(--text-tertiary);background:none;border:none;padding:2px 6px;cursor:pointer;line-height:1.4">${l}</button>`
-        ).join('')}
-      </div>
 
       <!-- Results -->
       <div id="results-area"></div>
@@ -46,14 +40,6 @@ export function renderPatientList(container) {
   const resultsArea = container.querySelector('#results-area');
   const spinner     = container.querySelector('#search-spinner');
 
-  // Mobile alpha scroller
-  if (window.innerWidth <= 768) {
-    container.querySelector('#alpha-scroller').classList.remove('hidden');
-    window.__alphaScroll = (letter) => {
-      searchInput.value = letter;
-      doSearch(letter);
-    };
-  }
 
   function doSearch(query) {
     currentQuery = query;

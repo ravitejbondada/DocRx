@@ -1104,3 +1104,35 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
   display: flex;
   flex-wrap: nowrap !important;
 }
+
+@media (max-width: 768px) {
+  /* Settings page card layout fixes */
+  #panel-backup .flex,
+  #panel-partners .flex,
+  .form-group .flex {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  #panel-backup .btn,
+  #panel-partners .btn,
+  .form-group .btn {
+    width: 100% !important;
+    justify-content: center;
+  }
+  
+  /* Make Google Sync action items wrap/stack cleanly */
+  #panel-backup .flex.items-center.flex-wrap {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  
+  /* Keep partners table actions clean and side-by-side */
+  .table-wrap table td div[style*="display:flex"] {
+    flex-direction: row !important;
+    gap: 4px !important;
+  }
+  .table-wrap table td div[style*="display:flex"] .btn {
+    width: auto !important;
+  }
+}
