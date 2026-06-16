@@ -1106,6 +1106,36 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
 }
 
 @media (max-width: 768px) {
+  .settings-tabs-wrap {
+    margin-bottom: 16px;
+  }
+  .settings-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 6px !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+  .settings-tabs .btn {
+    width: 100% !important;
+    justify-content: center;
+    background: var(--glass-bg) !important;
+    border: 1px solid var(--glass-border) !important;
+    padding: 8px 4px !important;
+    border-radius: var(--radius-md) !important;
+    font-size: 0.8rem !important;
+  }
+  .settings-tabs .btn.btn-primary {
+    background: var(--teal-600) !important;
+    border-color: var(--teal-500) !important;
+    color: white !important;
+  }
+  .settings-tabs .btn:last-child {
+    grid-column: span 2;
+  }
+
   /* Settings page card layout fixes */
   #panel-backup .flex,
   #panel-partners .flex,

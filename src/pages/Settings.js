@@ -75,46 +75,55 @@ export function renderSettings(container) {
       <!-- Clinic Info Tab -->
       <div id="panel-clinic" class="${activeTab !== 'clinic' ? 'hidden' : ''}">
         <div class="card card-p">
-          <div class="section-title mb-4">Doctor & Clinic Information</div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <div class="section-title mb-0">Doctor & Clinic Information</div>
+            <button type="button" class="btn btn-secondary btn-sm" id="edit-clinic-btn">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              Edit Info
+            </button>
+          </div>
           <form id="clinic-form" novalidate>
             <div class="form-grid form-grid-2" style="gap:16px;margin-bottom:16px">
               <div class="form-group">
                 <label class="form-label">Doctor First Name <span class="req">*</span></label>
-                <input class="input" id="s-doctor_first_name" type="text" value="${e(s.doctor_first_name)}" placeholder="e.g. Rajesh" />
+                <input class="input" id="s-doctor_first_name" type="text" value="${e(s.doctor_first_name)}" placeholder="e.g. Rajesh" disabled />
               </div>
               <div class="form-group">
                 <label class="form-label">Doctor Last Name <span class="req">*</span></label>
-                <input class="input" id="s-doctor_last_name" type="text" value="${e(s.doctor_last_name)}" placeholder="e.g. Kumar" />
+                <input class="input" id="s-doctor_last_name" type="text" value="${e(s.doctor_last_name)}" placeholder="e.g. Kumar" disabled />
               </div>
               <div class="form-group">
                 <label class="form-label">Qualifications</label>
-                <input class="input" id="s-doctor_qualification" type="text" value="${e(s.doctor_qualification)}" placeholder="MBBS, MD" />
+                <input class="input" id="s-doctor_qualification" type="text" value="${e(s.doctor_qualification)}" placeholder="MBBS, MD" disabled />
               </div>
               <div class="form-group">
                 <label class="form-label">Registration Number <span class="req">*</span></label>
-                <input class="input" id="s-doctor_reg_number" type="text" value="${e(s.doctor_reg_number)}" placeholder="AP-MED-12345" />
+                <input class="input" id="s-doctor_reg_number" type="text" value="${e(s.doctor_reg_number)}" placeholder="AP-MED-12345" disabled />
               </div>
               <div class="form-group">
                 <label class="form-label">Clinic Name</label>
-                <input class="input" id="s-clinic_name" type="text" value="${e(s.clinic_name)}" placeholder="City Health Clinic" />
+                <input class="input" id="s-clinic_name" type="text" value="${e(s.clinic_name)}" placeholder="City Health Clinic" disabled />
               </div>
             </div>
             <div class="form-group mb-4">
               <label class="form-label">Clinic Address <span class="req">*</span></label>
-              <textarea class="textarea" id="s-clinic_address" rows="3" placeholder="Full address for prescription letterhead">${e(s.clinic_address)}</textarea>
+              <textarea class="textarea" id="s-clinic_address" rows="3" placeholder="Full address for prescription letterhead" disabled>${e(s.clinic_address)}</textarea>
             </div>
             <div class="form-group mb-4">
               <label class="form-label">Contact Phone <span class="req">*</span></label>
-              <input class="input" id="s-clinic_phone" type="text" value="${e(s.clinic_phone)}" placeholder="Clinic phone number" />
+              <input class="input" id="s-clinic_phone" type="text" value="${e(s.clinic_phone)}" placeholder="Clinic phone number" disabled />
             </div>
             <div class="form-group mb-4">
               <label class="form-label">Print Footer Message</label>
-              <input class="input" id="s-print_footer_message" type="text" value="${e(s.print_footer_message)}" placeholder="Wishing you a swift and complete recovery." />
+              <input class="input" id="s-print_footer_message" type="text" value="${e(s.print_footer_message)}" placeholder="Wishing you a swift and complete recovery." disabled />
             </div>
-            <button type="submit" class="btn btn-primary">
-              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-              Save Changes
-            </button>
+            <div id="clinic-form-actions" class="hidden flex gap-2">
+              <button type="submit" class="btn btn-primary">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                Save Changes
+              </button>
+              <button type="button" class="btn btn-secondary" id="cancel-clinic-btn">Cancel</button>
+            </div>
           </form>
         </div>
       </div>
@@ -324,8 +333,31 @@ export function renderSettings(container) {
     });
   };
 
+  // Clinic Form Edit/Cancel/Submit toggles
+  const editBtn = container.querySelector('#edit-clinic-btn');
+  const cancelBtn = container.querySelector('#cancel-clinic-btn');
+  const clinicForm = container.querySelector('#clinic-form');
+  const actionContainer = container.querySelector('#clinic-form-actions');
+  const inputs = clinicForm?.querySelectorAll('input, textarea');
+
+  editBtn?.addEventListener('click', () => {
+    inputs.forEach(i => i.disabled = false);
+    editBtn.classList.add('hidden');
+    actionContainer.classList.remove('hidden');
+  });
+
+  const resetForm = () => {
+    inputs.forEach(i => i.disabled = true);
+    editBtn.classList.remove('hidden');
+    actionContainer.classList.add('hidden');
+  };
+
+  cancelBtn?.addEventListener('click', () => {
+    window.location.reload();
+  });
+
   // Clinic form save
-  container.querySelector('#clinic-form')?.addEventListener('submit', (e) => {
+  clinicForm?.addEventListener('submit', (e) => {
     e.preventDefault();
     const g = (sel) => container.querySelector(sel)?.value?.trim() || '';
     const docFirst = g('#s-doctor_first_name');
@@ -336,6 +368,7 @@ export function renderSettings(container) {
       [docFirst, docLast, docName, g('#s-doctor_qualification'), g('#s-doctor_reg_number'),
        g('#s-clinic_name'), g('#s-clinic_address'), g('#s-clinic_phone'), g('#s-print_footer_message')]);
     toast.success('Settings saved.');
+    resetForm();
   });
 
   // Backup
