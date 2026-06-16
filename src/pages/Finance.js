@@ -90,12 +90,12 @@ export function renderFinance(container) {
         .finance-day-details summary:hover { background: rgba(255,255,255,0.04); }
       </style>
       
-      <div class="page-header" style="display:flex; justify-content:space-between; align-items:flex-end;">
+      <div class="page-header page-header-finance">
         <div>
           <h1 class="page-title">Financial Overview</h1>
           <p class="page-subtitle">Track your practice revenue and patient footfall.</p>
         </div>
-        <div style="min-width: 220px;">
+        <div class="finance-period-selector">
           <label class="form-label mb-1">Filter Period</label>
           <select class="select" id="finance-filter">
             <option value="today" ${currentFilter === 'today' ? 'selected' : ''}>Today</option>

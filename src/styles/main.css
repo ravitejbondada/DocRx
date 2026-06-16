@@ -1213,3 +1213,24 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
   }
 }
 
+.page-header-finance {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.finance-period-selector {
+  min-width: 220px;
+}
+@media (max-width: 768px) {
+  .page-header-finance {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  .finance-period-selector {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+
