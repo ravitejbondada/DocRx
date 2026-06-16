@@ -59,6 +59,27 @@ export function renderVisitForm(container, params) {
       ` : ''}
 
       <form id="visit-form" novalidate>
+        <!-- Mobile Clinical Alerts & Quick Links (visible only on mobile) -->
+        <div class="hide-on-desktop mb-4 no-print" style="display:flex; flex-direction:column; gap:12px;">
+          <div class="card card-p" style="border:1px solid #f87171; background:rgba(239, 68, 68, 0.05)">
+            <div class="section-title mb-2" style="color:#ef4444; display:flex; justify-content:space-between; align-items:center;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                Clinical Alerts
+              </div>
+              <button type="button" class="btn btn-ghost btn-sm" style="color:#ef4444;padding:2px 6px;height:auto" onclick="window.__quickEditAlerts('${patientId}')">Edit</button>
+            </div>
+            ${patient.allergies ? `<div style="margin-bottom:8px"><span class="text-xs font-bold" style="color:#f87171">ALLERGIES:</span> <span class="text-sm font-semibold">${e(patient.allergies)}</span></div>` : ''}
+            ${patient.chronic_conditions ? `<div><span class="text-xs font-bold" style="color:#fb923c">CONDITIONS:</span> <span class="text-sm font-semibold">${e(patient.chronic_conditions)}</span></div>` : ''}
+            ${!patient.allergies && !patient.chronic_conditions ? `<div class="text-xs" style="color:#fca5a5">No known allergies or conditions recorded.</div>` : ''}
+          </div>
+
+          <button type="button" class="btn btn-secondary btn-block btn-lg" onclick="window.__toggleMobilePrevRx(true)" style="display:flex; align-items:center; justify-content:center; gap:8px;">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            View Previous Visit Records
+          </button>
+        </div>
+
         <div class="visit-form-layout">
           <!-- Left Column -->
           <div>
@@ -244,9 +265,10 @@ export function renderVisitForm(container, params) {
           </div>
 
           <!-- Right Sidebar: Clinical Alerts & Last Prescription -->
-          <div class="no-print" style="display:flex;flex-direction:column;gap:16px">
+          <div class="no-print right-sidebar-wrap" style="display:flex;flex-direction:column;gap:16px">
             
-            <div class="card card-p" style="border:1px solid #f87171; background:rgba(239, 68, 68, 0.05)">
+            <!-- Alerts: desktop only (hidden on mobile) -->
+            <div class="card card-p hide-on-mobile" style="border:1px solid #f87171; background:rgba(239, 68, 68, 0.05)">
               <div class="section-title mb-2" style="color:#ef4444; display:flex; justify-content:space-between; align-items:center;">
                 <div style="display:flex; align-items:center; gap:6px;">
                   <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
@@ -259,9 +281,18 @@ export function renderVisitForm(container, params) {
               ${!patient.allergies && !patient.chronic_conditions ? `<div class="text-xs" style="color:#fca5a5">No known allergies or conditions recorded.</div>` : ''}
             </div>
 
-            <div class="card card-p" style="position:sticky;top:20px">
-              <div class="section-title mb-3">Previous Prescriptions</div>
-              <div style="max-height:600px;overflow-y:auto;padding-right:8px">
+            <!-- Previous Prescriptions Card (drawer on mobile) -->
+            <div id="prev-rx-container" class="card card-p prev-rx-sidebar-container" style="position:sticky;top:20px">
+              <!-- Mobile Back Header -->
+              <div class="hide-on-desktop mb-4" style="display:flex; align-items:center; border-bottom:1px solid var(--glass-border); padding-bottom:12px;">
+                <button type="button" class="btn btn-ghost btn-sm" onclick="window.__toggleMobilePrevRx(false)" style="padding-left:0; font-size:0.95rem;">
+                  ← Back to Visit Form
+                </button>
+                <div class="font-bold text-base" style="margin-left:auto; color:var(--text-primary);">Previous Visit Details</div>
+              </div>
+
+              <div class="section-title mb-3 hide-on-mobile">Previous Prescriptions</div>
+              <div style="max-height:600px;overflow-y:auto;padding-right:8px" id="prev-rx-scroll-content">
                 ${renderLastRxSidebar(patientId, visitId)}
               </div>
             </div>
@@ -270,6 +301,18 @@ export function renderVisitForm(container, params) {
       </form>
     </div>
   `;
+
+  // Mobile Previous Records Drawer Toggle
+  window.__toggleMobilePrevRx = (open) => {
+    const el = container.querySelector('#prev-rx-container');
+    if (el) {
+      if (open) {
+        el.classList.add('open');
+      } else {
+        el.classList.remove('open');
+      }
+    }
+  };
 
   // --- Quick Edit Alerts & Delete Visit ---
   window.__quickEditAlerts = async (pId) => {

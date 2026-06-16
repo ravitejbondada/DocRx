@@ -1185,3 +1185,31 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
   color: var(--text-tertiary);
   margin-top: 2px;
 }
+
+/* Mobile styles for Previous Prescriptions drawer */
+@media (max-width: 768px) {
+  .prev-rx-sidebar-container {
+    display: none !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 2000 !important;
+    background: var(--surface-0) !important;
+    padding: 20px 16px !important;
+    overflow-y: auto !important;
+    border-radius: 0 !important;
+    border: none !important;
+  }
+  .prev-rx-sidebar-container.open {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .prev-rx-sidebar-container #prev-rx-scroll-content {
+    max-height: none !important;
+    flex: 1;
+    overflow-y: auto;
+  }
+}
+
