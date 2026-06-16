@@ -588,7 +588,7 @@ export function renderVisitForm(container, params) {
           refreshTestTable();
         },
       });
-      inp.addEventListener('change', () => { testRowData[idx].test_name = inp.value; });
+      inp.addEventListener('input', () => { testRowData[idx].test_name = inp.value; });
     });
     rowsEl.querySelectorAll('[data-field]').forEach(inp => {
       inp.addEventListener('change', () => { testRowData[parseInt(inp.dataset.idx,10)][inp.dataset.field] = inp.value; });
