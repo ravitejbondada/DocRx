@@ -1400,7 +1400,57 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
     justify-content: space-around !important;
     gap: 8px !important;
   }
+
+  /* Responsive tables in Settings */
+  .table-wrap {
+    margin: 0 !important;
+    overflow-x: visible !important;
+  }
+  .table-wrap table, 
+  .table-wrap thead, 
+  .table-wrap tbody, 
+  .table-wrap th, 
+  .table-wrap td, 
+  .table-wrap tr { 
+    display: block !important; 
+  }
+  .table-wrap thead { 
+    display: none !important; 
+  }
+  .table-wrap tr {
+    border-bottom: 1px solid var(--glass-border) !important;
+    padding: 12px 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  .table-wrap td {
+    padding: 0 !important;
+    border: none !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    text-align: left !important;
+  }
+  .table-wrap td:nth-of-type(1) {
+    font-size: 1rem !important;
+    font-weight: 700 !important;
+  }
+  .table-wrap td:nth-of-type(2) {
+    font-size: 0.85rem !important;
+    color: var(--text-secondary) !important;
+  }
+  .table-wrap td:nth-of-type(3)::before {
+    content: "Default Partner: ";
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+    font-weight: 600;
+  }
+  .table-wrap td:nth-of-type(4) {
+    margin-top: 4px !important;
+  }
 }
+
 
 
 
