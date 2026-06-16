@@ -32,6 +32,10 @@ export function persistDB() {
     import('idb-keyval').then(({ set }) => {
       set('docrx_sqlite_db_v1', buf).catch(e => console.warn('IDB save error', e));
     });
+    // Trigger auto-sync in background
+    import('../backup/sync.js').then(({ triggerBackgroundSyncDebounced }) => {
+      triggerBackgroundSyncDebounced();
+    }).catch(() => {});
   } catch (e) {
     console.warn('DocRx: DB persist error', e);
   }

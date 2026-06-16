@@ -5,6 +5,8 @@ import { queryOne, queryAll, run } from '../db/index.js';
 import { toast } from '../components/Toast.js';
 import { navigate, getParams } from '../router.js';
 import { showModal } from '../components/Modal.js';
+import { initAuth, getSavedToken, clearSavedToken } from '../backup/drive.js';
+import { syncWithGoogleDrive } from '../backup/sync.js';
 
 export function renderSettings(container) {
   const s = queryOne('SELECT * FROM settings WHERE id=1') || {};
@@ -233,6 +235,41 @@ export function renderSettings(container) {
           </div>
         </div>
 
+        <div class="card card-p mb-4">
+          <div class="section-title mb-2">Google Drive Real-time Sync</div>
+          <p class="text-sm text-muted mb-4" style="line-height:1.6">
+            Keep your database synced in real-time across devices. Uses a conflict-free merge engine so changes on desktop and mobile are merged safely.
+          </p>
+          
+          <div class="form-group mb-4">
+            <label class="form-label">Google OAuth Client ID</label>
+            <div class="flex gap-2">
+              <input type="text" class="input" id="google-client-id" placeholder="Paste your Google OAuth Client ID here..." value="${s.google_client_id || ''}" style="flex:1" />
+              <button class="btn btn-secondary" id="save-client-id-btn">Save ID</button>
+            </div>
+            <p class="text-xs text-muted mt-1">Configure this client ID in Google Cloud Console. Enable Javascript Origins: <code>${window.location.origin}</code></p>
+          </div>
+
+          <div class="flex gap-3 items-center flex-wrap">
+            <button class="btn ${getSavedToken() ? 'btn-secondary' : 'btn-primary'}" id="gdrive-connect-btn">
+              ${getSavedToken() ? 'Disconnect Drive' : 'Connect Google Drive'}
+            </button>
+            <button class="btn btn-primary ${getSavedToken() ? '' : 'hidden'}" id="gdrive-sync-btn">
+              Sync Now
+            </button>
+            <label class="flex items-center gap-2 text-sm ${getSavedToken() ? '' : 'hidden'}" style="cursor:pointer">
+              <input type="checkbox" id="gdrive-auto-sync" ${s.google_sync_enabled ? 'checked' : ''} />
+              Auto-Sync in Background
+            </label>
+          </div>
+
+          <div id="sync-status-box" class="hidden mt-4 alert alert-info" style="margin-bottom:0">
+            <div class="text-sm" id="sync-status-text">Ready to sync.</div>
+          </div>
+          
+          ${s.last_sync_timestamp ? `<div class="text-xs text-muted mt-3" id="sync-time-display">Last synchronized: ${s.last_sync_timestamp}</div>` : ''}
+        </div>
+
         <div class="card card-p">
           <div class="section-title mb-2">Restore from Backup</div>
           <p class="text-sm text-muted mb-4" style="line-height:1.6">
@@ -323,6 +360,68 @@ export function renderSettings(container) {
     } catch (err) {
       toast.error('Download failed: ' + err.message);
     }
+  });
+
+  // Save Google Client ID
+  container.querySelector('#save-client-id-btn')?.addEventListener('click', () => {
+    const val = container.querySelector('#google-client-id')?.value?.trim() || '';
+    run("UPDATE settings SET google_client_id=? WHERE id=1", [val]);
+    toast.success('Google Client ID saved.');
+    navigate('/settings?tab=backup');
+  });
+
+  // Connect Google Drive
+  container.querySelector('#gdrive-connect-btn')?.addEventListener('click', async () => {
+    const clientId = container.querySelector('#google-client-id')?.value?.trim();
+    if (!clientId) {
+      toast.error('Please enter and save a Client ID first.');
+      return;
+    }
+
+    if (getSavedToken()) {
+      clearSavedToken();
+      run("UPDATE settings SET google_sync_enabled=0 WHERE id=1");
+      toast.info('Google Drive disconnected.');
+      navigate('/settings?tab=backup');
+    } else {
+      try {
+        const client = await initAuth(clientId, (tokenData) => {
+          toast.success('Google Drive authorized successfully!');
+          navigate('/settings?tab=backup');
+        });
+        client.requestAccessToken({ prompt: 'consent' });
+      } catch (err) {
+        toast.error('Auth initialization failed: ' + err.message);
+      }
+    }
+  });
+
+  // Sync Now
+  container.querySelector('#gdrive-sync-btn')?.addEventListener('click', async () => {
+    const statusBox = container.querySelector('#sync-status-box');
+    const statusText = container.querySelector('#sync-status-text');
+    statusBox.classList.remove('hidden');
+    
+    await syncWithGoogleDrive((status) => {
+      statusText.textContent = status.message;
+      if (status.type === 'success') {
+        statusBox.className = 'mt-4 alert alert-success';
+        toast.success('Synchronization complete!');
+        setTimeout(() => navigate('/settings?tab=backup'), 1000);
+      } else if (status.type === 'error') {
+        statusBox.className = 'mt-4 alert alert-danger';
+        toast.error(status.message);
+      } else {
+        statusBox.className = 'mt-4 alert alert-info';
+      }
+    });
+  });
+
+  // Auto Sync toggle
+  container.querySelector('#gdrive-auto-sync')?.addEventListener('change', (e) => {
+    const enabled = e.target.checked ? 1 : 0;
+    run("UPDATE settings SET google_sync_enabled=? WHERE id=1", [enabled]);
+    toast.success(enabled ? 'Background auto-sync enabled.' : 'Background auto-sync disabled.');
   });
 
   // Restore

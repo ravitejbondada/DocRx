@@ -2,7 +2,7 @@
 // DocRx — Database Schema & DDL
 // ============================================================
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export const CREATE_TABLES_SQL = `
 PRAGMA journal_mode=WAL;
@@ -23,7 +23,10 @@ CREATE TABLE IF NOT EXISTS settings (
   last_backup_at        DATETIME,
   password_hash         TEXT    NOT NULL DEFAULT '',
   password_salt         TEXT    NOT NULL DEFAULT '',
-  print_footer_message  TEXT    NOT NULL DEFAULT 'Wishing you a swift and complete recovery. Please take your medications as prescribed.'
+  print_footer_message  TEXT    NOT NULL DEFAULT 'Wishing you a swift and complete recovery. Please take your medications as prescribed.',
+  google_client_id      TEXT    NOT NULL DEFAULT '',
+  google_sync_enabled   INTEGER NOT NULL DEFAULT 0,
+  last_sync_timestamp   TEXT
 );
 
 -- ── patients ─────────────────────────────────────────────────
@@ -184,5 +187,10 @@ export const MIGRATIONS = {
       is_default    INTEGER DEFAULT 0
     );
   `,
-  3: `-- Handled in JS inside index.js due to UUID mapping requirements --`
+  3: `-- Handled in JS inside index.js due to UUID mapping requirements --`,
+  4: `
+    ALTER TABLE settings ADD COLUMN google_client_id TEXT NOT NULL DEFAULT '';
+    ALTER TABLE settings ADD COLUMN google_sync_enabled INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE settings ADD COLUMN last_sync_timestamp TEXT;
+  `
 };
