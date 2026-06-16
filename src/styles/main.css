@@ -1233,4 +1233,50 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
   }
 }
 
+/* Stat card interior styling overrides to minimize empty desktop space */
+.stat-card-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.stat-card-main {
+  display: flex;
+  flex-direction: column;
+}
+.stat-card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: right;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  padding-left: 16px;
+  margin-left: 16px;
+}
+.stat-detail-item {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.stat-detail-item .label {
+  opacity: 0.8;
+  color: var(--text-tertiary);
+}
+.stat-detail-item .val {
+  color: var(--text-primary);
+  font-weight: 700;
+  margin-left: 4px;
+}
+@media (max-width: 480px) {
+  .stat-card-inner {
+    align-items: flex-start;
+  }
+  .stat-card-details {
+    padding-left: 10px;
+    margin-left: 10px;
+    gap: 4px;
+  }
+}
+
+
 
