@@ -341,15 +341,19 @@ function loadVisitDetails(visitId, patientId) {
     ${rx.length ? `
     <div class="mb-3">
       <div class="text-xs font-bold text-tertiary mb-2">💊 PRESCRIPTIONS</div>
-      <div style="display:flex;flex-direction:column;gap:4px">
+      <div style="display:flex;flex-direction:column;gap:8px">
         ${rx.map((r, i) => `
-          <div class="flex items-center gap-2 text-sm" style="padding:6px 10px;background:rgba(255,255,255,0.02);border-radius:6px">
-            <span class="text-tertiary font-mono" style="font-size:0.7rem;min-width:20px">${i+1}.</span>
-            <span class="font-semibold">${r.medicine_name}</span>
-            ${r.dosage ? `<span class="badge badge-neutral">${r.dosage}</span>` : ''}
-            ${r.frequency ? `<span class="text-muted">${r.frequency}</span>` : ''}
-            ${r.duration ? `<span class="text-tertiary">× ${r.duration}</span>` : ''}
-            ${r.instructions ? `<span class="text-tertiary text-xs">(${r.instructions})</span>` : ''}
+          <div style="padding:8px 12px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:8px">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-tertiary font-mono" style="font-size:0.7rem;min-width:16px">${i+1}.</span>
+              <span class="font-semibold" style="flex:1;color:var(--text-primary)">${r.medicine_name}</span>
+            </div>
+            <div class="flex items-center gap-2 text-sm flex-wrap" style="padding-left:24px">
+              ${r.dosage ? `<span class="badge badge-neutral">${r.dosage}</span>` : ''}
+              ${r.frequency ? `<span class="text-muted font-semibold">${r.frequency}</span>` : ''}
+              ${r.duration ? `<span class="text-tertiary">× ${r.duration}</span>` : ''}
+              ${r.instructions ? `<span class="text-tertiary text-xs bg-slate-800 px-2 py-1 rounded">(${r.instructions})</span>` : ''}
+            </div>
           </div>
         `).join('')}
       </div>
@@ -358,12 +362,14 @@ function loadVisitDetails(visitId, patientId) {
     ${tests.length ? `
     <div class="mb-3">
       <div class="text-xs font-bold text-tertiary mb-2">🧪 INVESTIGATIONS</div>
-      <div style="display:flex;flex-direction:column;gap:4px">
+      <div style="display:flex;flex-direction:column;gap:8px">
         ${tests.map(t => `
-          <div class="flex items-center gap-2 text-sm" style="padding:6px 10px;background:rgba(255,255,255,0.02);border-radius:6px">
-            <span class="font-semibold">${t.test_name}</span>
-            ${t.urgency === 'Urgent' ? `<span class="badge badge-danger">Urgent</span>` : '<span class="badge badge-neutral">Routine</span>'}
-            ${t.instructions ? `<span class="text-tertiary text-xs">${t.instructions}</span>` : ''}
+          <div style="padding:8px 12px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:8px">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="font-semibold" style="color:var(--text-primary)">${t.test_name}</span>
+              ${t.urgency === 'Urgent' ? `<span class="badge badge-danger">Urgent</span>` : '<span class="badge badge-neutral">Routine</span>'}
+            </div>
+            ${t.instructions ? `<div class="text-tertiary text-xs mt-1 bg-slate-800 px-2 py-1 rounded inline-block">${t.instructions}</div>` : ''}
           </div>
         `).join('')}
       </div>

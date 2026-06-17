@@ -101,20 +101,43 @@ export function renderLayout(container) {
         </div>
       </aside>
 
+      <!-- Mobile Top App Bar -->
+      <header class="mobile-top-bar hide-on-desktop">
+        <div class="flex items-center gap-2">
+          <div class="brand-logo">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+          </div>
+          <div>
+            <div class="font-bold text-sm" style="color:var(--text-primary);line-height:1.2">${settings.clinic_name || 'DocRx'}</div>
+            <div class="text-xs text-tertiary" style="line-height:1">${settings.doctor_name || 'Doctor Profile'}</div>
+          </div>
+        </div>
+        <div id="mobile-sync-indicator-container">
+          <div class="sync-indicator offline" title="Sync Status" onclick="window.__triggerManualSync(event)"></div>
+        </div>
+      </header>
+
       <!-- Main Content Area -->
       <main class="main-content" id="page-root"></main>
 
-      <!-- Floating Action Button -->
-      <button class="fab" onclick="window.__openQuickVisitModal(event)" title="Start New Visit">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-      </button>
-
-      <!-- Mobile Floating Sync Indicator -->
-      <div id="mobile-sync-indicator" class="sync-indicator mobile-sync-indicator offline" title="Sync Status" onclick="window.__triggerManualSync(event)" style="display:none"></div>
-
       <!-- Mobile Bottom Nav -->
       <nav class="bottom-nav" id="bottom-nav" style="display:none">
-        ${NAV_ITEMS.map(item => `
+        ${NAV_ITEMS.slice(0, 2).map(item => `
+          <button class="bottom-nav-item ${getCurrentRoute() === item.route ? 'active' : ''}"
+                  data-route="${item.route}"
+                  onclick="window.__navigate('${item.route}')">
+            ${item.icon}
+            <span>${item.label}</span>
+          </button>
+        `).join('')}
+
+        <div class="bottom-nav-fab-container">
+          <button class="fab-centered" onclick="window.__openQuickVisitModal(event)" title="Add Menu">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+          </button>
+        </div>
+
+        ${NAV_ITEMS.slice(3, 5).map(item => `
           <button class="bottom-nav-item ${getCurrentRoute() === item.route ? 'active' : ''}"
                   data-route="${item.route}"
                   onclick="window.__navigate('${item.route}')">
@@ -148,7 +171,7 @@ export function renderLayout(container) {
     const msg = status?.message || 'Sync status';
     
     document.querySelectorAll('.sync-indicator').forEach(el => {
-      el.className = `sync-indicator ${el.id === 'mobile-sync-indicator' ? 'mobile-sync-indicator' : ''} ${type === 'success' ? 'online' : type}`;
+      el.className = `sync-indicator ${type === 'success' ? 'online' : type}`;
       el.title = msg;
       el.innerHTML = STATUS_ICONS[type] || STATUS_ICONS.offline;
     });
@@ -179,7 +202,7 @@ export function renderLayout(container) {
     `;
 
     const overlay = showModal({
-      title: 'Start New Visit / Checkup',
+      title: 'New Patient or Visit',
       bodyHtml,
       confirmText: '', // Selection/Click will perform the confirm/navigation
       cancelText: 'Close'

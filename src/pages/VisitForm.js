@@ -87,23 +87,23 @@ export function renderVisitForm(container, params) {
             <!-- Visit Info -->
             <div class="card card-p mb-4">
               <div class="section-title mb-4">Visit Information</div>
-              <div class="form-grid form-grid-3" style="gap:14px">
+              <div class="form-grid mobile-split-row mb-3" style="gap:14px">
                 <div class="form-group">
                   <label class="form-label">Visit Date <span class="req">*</span></label>
                   <input class="input" id="visit_date" type="date" value="${existing?.visit_date || today}" ${isLocked ? 'disabled' : ''} />
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Visit Type</label>
-                  <div class="flex gap-2">
-                    <button type="button" class="btn btn-sm ${(existing?.visit_type || 'New') === 'New' ? 'btn-success' : 'btn-secondary'}" id="type-new" onclick="setVisitType('New')">New</button>
-                    <button type="button" class="btn btn-sm ${existing?.visit_type === 'Follow-up' ? 'btn-primary' : 'btn-secondary'}" id="type-fu" onclick="setVisitType('Follow-up')">Follow-up</button>
-                  </div>
-                  <input type="hidden" id="visit_type" value="${existing?.visit_type || 'New'}" />
-                </div>
-                <div class="form-group">
                   <label class="form-label">Follow-up Date</label>
                   <input class="input" id="follow_up_date" type="date" value="${existing?.follow_up_date || ''}" min="${today}" ${isLocked ? 'disabled' : ''} />
                 </div>
+              </div>
+              <div class="form-group mt-3">
+                <label class="form-label">Visit Type</label>
+                <div class="flex gap-2">
+                  <button type="button" style="flex:1;justify-content:center" class="btn btn-sm ${(existing?.visit_type || 'New') === 'New' ? 'btn-success' : 'btn-secondary'}" id="type-new" onclick="setVisitType('New')">New</button>
+                  <button type="button" style="flex:1;justify-content:center" class="btn btn-sm ${existing?.visit_type === 'Follow-up' ? 'btn-primary' : 'btn-secondary'}" id="type-fu" onclick="setVisitType('Follow-up')">Follow-up</button>
+                </div>
+                <input type="hidden" id="visit_type" value="${existing?.visit_type || 'New'}" />
               </div>
               <div class="form-group mt-3">
                 <label class="form-label">Chief Complaint <span class="req">*</span></label>
