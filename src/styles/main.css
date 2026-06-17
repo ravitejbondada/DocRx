@@ -244,6 +244,9 @@ a:hover { color: var(--teal-300); }
 .user-name { font-size: 0.8rem; font-weight: 600; color: var(--text-primary); }
 .user-role { font-size: 0.7rem; color: var(--text-tertiary); }
 
+/* ── Mobile Top Bar (hidden on desktop) ──────────────────────── */
+.mobile-top-bar { display: none; }
+
 /* ── Main Content ────────────────────────────────────────────── */
 .main-content {
   margin-left: var(--sidebar-w);
