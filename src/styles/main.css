@@ -713,8 +713,8 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
   text-decoration: none; display: flex; flex-direction: column; gap: 10px;
 }
 .recent-patient-card:hover { background: var(--glass-hover); border-color: rgba(255,255,255,0.12); transform: translateY(-3px); box-shadow: var(--shadow-md); }
-.recent-card-left { display: flex; flex-direction: column; gap: 8px; }
-.recent-card-right { display: flex; flex-direction: column; gap: 2px; }
+.recent-card-left { display: contents; }
+.recent-card-right { display: contents; }
 .recent-patient-avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--sky-600), var(--teal-600)); display: flex; align-items: center; justify-content: center; font-size: 0.9rem; font-weight: 700; color: white; flex-shrink: 0; }
 .recent-patient-name { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); line-height: 1.3; }
 .recent-patient-meta { font-size: 0.72rem; color: var(--text-tertiary); }
@@ -1236,11 +1236,14 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
     align-items: center;
   }
   .recent-card-left {
+    display: flex !important;
     flex-direction: row !important;
     align-items: center;
     gap: 12px;
   }
   .recent-card-right {
+    display: flex !important;
+    flex-direction: column !important;
     align-items: flex-end;
     text-align: right;
   }

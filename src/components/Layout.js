@@ -61,7 +61,7 @@ export function renderLayout(container) {
             <button class="nav-item ${getCurrentRoute() === item.route ? 'active' : ''}"
                     data-route="${item.route}"
                     onclick="window.__navigate('${item.route}')">
-              ${item.icon} <span>${item.label}</span>
+              ${item.icon}<span>${item.label}</span>
             </button>
           `).join('')}
 
@@ -69,19 +69,19 @@ export function renderLayout(container) {
           <button class="nav-item ${getCurrentRoute() === '/patients/new' ? 'active' : ''}"
                   data-route="/patients/new"
                   onclick="window.__navigate('/patients/new')">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg> <span>New Patient</span>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg><span>New Patient</span>
           </button>
 
           <div class="nav-section-label" style="margin-top:8px">System</div>
           <button class="nav-item ${getCurrentRoute() === '/finance' ? 'active' : ''}"
                   data-route="/finance"
                   onclick="window.__navigate('/finance')">
-            ${NAV_ITEMS[2].icon} <span>Finance</span>
+            ${NAV_ITEMS[2].icon}<span>Finance</span>
           </button>
           <button class="nav-item ${getCurrentRoute() === '/settings' ? 'active' : ''}"
                   data-route="/settings"
                   onclick="window.__navigate('/settings')">
-            ${NAV_ITEMS[3].icon} <span>Settings</span>
+            ${NAV_ITEMS[3].icon}<span>Settings</span>
           </button>
         </nav>
 
