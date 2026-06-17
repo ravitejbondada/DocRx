@@ -955,9 +955,10 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
     padding: 16px;
   }
 
-  /* Mobile Top App Bar */
   .mobile-top-bar {
     display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
     position: sticky;
     top: 0;
     z-index: 900;
@@ -969,6 +970,10 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
     align-items: center;
     justify-content: space-between;
     box-shadow: var(--shadow-sm);
+  }
+  .mobile-top-bar > .flex.items-center.gap-2 {
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
   }
   .mobile-top-bar .brand-logo {
     display: flex;

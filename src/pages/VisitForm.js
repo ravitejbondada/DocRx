@@ -87,19 +87,19 @@ export function renderVisitForm(container, params) {
             <!-- Visit Info -->
             <div class="card card-p mb-4">
               <div class="section-title mb-4">Visit Information</div>
-              <div class="form-grid mobile-split-row mb-3" style="gap:14px">
-                <div class="form-group">
-                  <label class="form-label">Visit Date <span class="req">*</span></label>
-                  <input class="input" id="visit_date" type="date" value="${existing?.visit_date || today}" ${isLocked ? 'disabled' : ''} />
+              <div class="flex gap-2 mb-3" style="flex-direction: row !important; flex-wrap: nowrap !important;">
+                <div class="form-group" style="flex:1;">
+                  <label class="form-label" for="visit_date">Visit Date <span class="req">*</span></label>
+                  <input type="date" id="visit_date" class="input" value="${existing?.visit_date || new Date().toISOString().split('T')[0]}" ${isLocked ? 'disabled' : ''} />
                 </div>
-                <div class="form-group">
-                  <label class="form-label">Follow-up Date</label>
-                  <input class="input" id="follow_up_date" type="date" value="${existing?.follow_up_date || ''}" min="${today}" ${isLocked ? 'disabled' : ''} />
+                <div class="form-group" style="flex:1;">
+                  <label class="form-label" for="follow_up_date">Follow-up Date</label>
+                  <input type="date" id="follow_up_date" class="input" value="${existing?.follow_up_date || ''}" min="${today}" ${isLocked ? 'disabled' : ''} />
                 </div>
               </div>
               <div class="form-group mt-3">
                 <label class="form-label">Visit Type</label>
-                <div class="flex gap-2">
+                <div class="flex gap-2" style="flex-direction: row !important; flex-wrap: nowrap !important;">
                   <button type="button" style="flex:1;justify-content:center" class="btn btn-sm ${(existing?.visit_type || 'New') === 'New' ? 'btn-success' : 'btn-secondary'}" id="type-new" onclick="setVisitType('New')">New</button>
                   <button type="button" style="flex:1;justify-content:center" class="btn btn-sm ${existing?.visit_type === 'Follow-up' ? 'btn-primary' : 'btn-secondary'}" id="type-fu" onclick="setVisitType('Follow-up')">Follow-up</button>
                 </div>

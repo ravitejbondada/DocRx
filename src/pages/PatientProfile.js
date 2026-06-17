@@ -307,9 +307,18 @@ function renderTimelineCard(v, patientId, index) {
 }
 
 function loadVisitDetails(visitId, patientId) {
-  const rx    = queryAll('SELECT * FROM prescriptions WHERE visit_id=? AND deleted=0 ORDER BY sort_order ASC', [visitId]);
-  const tests = queryAll('SELECT * FROM diagnostic_tests WHERE visit_id=? AND deleted=0', [visitId]);
-  const v     = queryOne('SELECT * FROM visits WHERE id=? AND deleted=0', [visitId]);
+  const rxRaw = queryAll('SELECT * FROM prescriptions WHERE visit_id=? AND deleted=0 ORDER BY sort_order ASC', [visitId]);
+  const testsRaw = queryAll('SELECT * FROM diagnostic_tests WHERE visit_id=? AND deleted=0', [visitId]);
+  const v = queryOne('SELECT * FROM visits WHERE id=? AND deleted=0', [visitId]);
+
+  // Deduplicate rx and tests in case of accidental duplicate DB inserts
+  const rxMap = new Map();
+  rxRaw.forEach(r => { if (!rxMap.has(r.medicine_name)) rxMap.set(r.medicine_name, r); });
+  const rx = Array.from(rxMap.values());
+
+  const testsMap = new Map();
+  testsRaw.forEach(t => { if (!testsMap.has(t.test_name)) testsMap.set(t.test_name, t); });
+  const tests = Array.from(testsMap.values());
 
   const vitals = [
     { label: 'BP', value: v.bp, unit: 'mmHg' },
