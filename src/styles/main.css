@@ -1100,10 +1100,6 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
 
 @media (max-width: 480px) {
   .auth-card { padding: 28px 22px; }
-  .profile-vitals-grid,
-  .vitals-grid {
-    grid-template-columns: 1fr !important;
-  }
   .stat-value { font-size: 1.6rem; }
 }
 
