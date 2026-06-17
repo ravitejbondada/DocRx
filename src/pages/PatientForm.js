@@ -158,10 +158,10 @@ export function renderPatientForm(container, params = {}) {
     if (!confirm('WARNING: Are you sure you want to completely delete this patient and ALL their visits, prescriptions, and tests? This CANNOT be undone!')) return;
     const { run } = await import('../db/index.js');
     const now = new Date().toISOString();
-    run('UPDATE prescriptions SET deleted=1, deleted_at=? WHERE visit_id IN (SELECT id FROM visits WHERE patient_id=?)', [now, pId]);
-    run('UPDATE diagnostic_tests SET deleted=1, deleted_at=? WHERE visit_id IN (SELECT id FROM visits WHERE patient_id=?)', [now, pId]);
-    run('UPDATE visits SET deleted=1, deleted_at=? WHERE patient_id=?', [now, pId]);
-    run('UPDATE patients SET deleted=1, deleted_at=? WHERE id=?', [now, pId]);
+    run('UPDATE prescriptions SET deleted=1, deleted_at=?, updated_at=? WHERE visit_id IN (SELECT id FROM visits WHERE patient_id=?)', [now, now, pId]);
+    run('UPDATE diagnostic_tests SET deleted=1, deleted_at=?, updated_at=? WHERE visit_id IN (SELECT id FROM visits WHERE patient_id=?)', [now, now, pId]);
+    run('UPDATE visits SET deleted=1, deleted_at=?, updated_at=? WHERE patient_id=?', [now, now, pId]);
+    run('UPDATE patients SET deleted=1, deleted_at=?, updated_at=? WHERE id=?', [now, now, pId]);
     window.__navigate('/patients');
   };
 

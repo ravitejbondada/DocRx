@@ -317,9 +317,9 @@ export function renderVisitForm(container, params) {
     if (!confirm('Are you sure you want to delete this visit completely? This cannot be undone.')) return;
     const { run } = await import('../db/index.js');
     const now = new Date().toISOString();
-    run('UPDATE visits SET deleted=1, deleted_at=? WHERE id=?', [now, vId]);
-    run('UPDATE prescriptions SET deleted=1, deleted_at=? WHERE visit_id=?', [now, vId]);
-    run('UPDATE diagnostic_tests SET deleted=1, deleted_at=? WHERE visit_id=?', [now, vId]);
+    run('UPDATE visits SET deleted=1, deleted_at=?, updated_at=? WHERE id=?', [now, now, vId]);
+    run('UPDATE prescriptions SET deleted=1, deleted_at=?, updated_at=? WHERE visit_id=?', [now, now, vId]);
+    run('UPDATE diagnostic_tests SET deleted=1, deleted_at=?, updated_at=? WHERE visit_id=?', [now, now, vId]);
     window.__navigate('/patients/' + pId);
   };
 
@@ -629,8 +629,8 @@ export function renderVisitForm(container, params) {
 
         // Soft delete prescriptions & tests
         const now = new Date().toISOString();
-        run("UPDATE prescriptions SET deleted=1, deleted_at=? WHERE visit_id=?", [now, vId]);
-        run("UPDATE diagnostic_tests SET deleted=1, deleted_at=? WHERE visit_id=?", [now, vId]);
+        run("UPDATE prescriptions SET deleted=1, deleted_at=?, updated_at=? WHERE visit_id=?", [now, now, vId]);
+        run("UPDATE diagnostic_tests SET deleted=1, deleted_at=?, updated_at=? WHERE visit_id=?", [now, now, vId]);
       } else {
         run(
           `INSERT INTO visits (id,patient_id,visit_date,chief_complaint,diagnosis,clinical_notes,

@@ -529,7 +529,7 @@ export function renderSettings(container) {
 
   window.__deletePartner = (table, id) => {
     if (!confirm('Are you sure you want to delete this partner?')) return;
-    run(`UPDATE ${table} SET deleted=1, deleted_at=datetime('now','localtime') WHERE id=?`, [id]);
+    run(`UPDATE ${table} SET deleted=1, deleted_at=datetime('now','localtime'), updated_at=datetime('now','localtime') WHERE id=?`, [id]);
     navigate('/settings?tab=partners');
   };
 
