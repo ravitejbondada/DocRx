@@ -37,7 +37,7 @@ export function renderDashboard(container) {
     WHERE p.deleted = 0
     GROUP BY p.id
     ORDER BY last_visit DESC, p.created_at DESC
-    LIMIT 10
+    LIMIT ${window.innerWidth < 768 ? 4 : 12}
   `);
 
   // Follow-up tracker (today or overdue, not yet visited)
@@ -156,11 +156,17 @@ export function renderDashboard(container) {
             <div class="recent-grid">
               ${recentPatients.map(p => `
                 <a class="recent-patient-card" onclick="window.__navigate('/patients/${p.id}')">
-                  <div class="recent-patient-avatar">${getInitials(p.full_name)}</div>
-                  <div class="recent-patient-name truncate">${p.full_name}</div>
-                  <div class="patient-code">${p.patient_code}</div>
-                  <div class="recent-patient-meta">${p.age}y · ${genderLabel(p.gender)}</div>
-                  ${p.last_visit ? `<div class="recent-patient-meta">${formatDate(p.last_visit)}</div>` : '<div class="recent-patient-meta text-tertiary">No visits</div>'}
+                  <div class="recent-card-left">
+                    <div class="recent-patient-avatar">${getInitials(p.full_name)}</div>
+                    <div>
+                      <div class="recent-patient-name truncate">${p.full_name}</div>
+                      <div class="patient-code">${p.patient_code}</div>
+                    </div>
+                  </div>
+                  <div class="recent-card-right">
+                    <div class="recent-patient-meta">${p.age}y · ${genderLabel(p.gender)}</div>
+                    ${p.last_visit ? `<div class="recent-patient-meta">${formatDate(p.last_visit)}</div>` : '<div class="recent-patient-meta text-tertiary">No visits</div>'}
+                  </div>
                 </a>
               `).join('')}
             </div>

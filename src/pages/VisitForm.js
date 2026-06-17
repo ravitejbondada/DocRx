@@ -172,21 +172,7 @@ export function renderVisitForm(container, params) {
               <div class="section-header">
                 <div class="section-title">Prescriptions</div>
                 <div class="flex gap-2">
-                  ${lastVisits.length ? `
-                  <div style="position:relative">
-                    <button type="button" class="btn btn-secondary btn-sm" id="copy-rx-btn" ${isLocked ? 'disabled' : ''}>
-                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                      Copy from Past
-                    </button>
-                    <div id="copy-rx-dropdown" class="autocomplete-list" style="min-width:240px;top:calc(100% + 4px)">
-                      ${lastVisits.map(lv => `
-                        <div class="autocomplete-item" onclick="window.__copyRx(${lv.id})">
-                          <span>${formatDate(lv.visit_date)} ${lv.diagnosis ? `— ${lv.diagnosis}` : ''}</span>
-                        </div>
-                      `).join('')}
-                    </div>
-                  </div>
-                  ` : ''}
+
                   <button type="button" class="btn btn-primary btn-sm" id="add-rx-btn" ${isLocked ? 'disabled' : ''}>
                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                     Add Medicine
