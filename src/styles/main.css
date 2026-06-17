@@ -815,9 +815,29 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
     display: flex;
     gap: 8px;
   }
-  .page-header .btn {
+  .page-header .btn:not(.btn-icon) {
     flex: 1;
     justify-content: center;
+  }
+  
+  .timeline-header {
+    flex-wrap: wrap;
+  }
+  .timeline-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--glass-border);
+  }
+  
+  .visit-form-actions {
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+  .visit-form-actions .btn {
+    width: 100% !important;
+    margin-left: 0 !important;
   }
   
   .page-content {
