@@ -793,6 +793,10 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
     overflow-x: hidden;
   }
 
+  .app-layout {
+    flex-direction: column;
+  }
+
   .sidebar {
     transform: translateX(-240px);
     box-shadow: var(--shadow-lg);
@@ -1060,10 +1064,10 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
     height: 100%;
   }
   .fab-centered {
-    position: absolute;
-    bottom: 8px; /* Slightly elevated above the bar */
-    width: 56px;
-    height: 56px;
+    position: relative;
+    bottom: auto;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     background: linear-gradient(135deg, var(--teal-500), var(--sky-500));
     color: white;
@@ -1071,14 +1075,18 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8px 24px rgba(14, 165, 233, 0.4);
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
     cursor: pointer;
     transition: all var(--t-base) var(--ease-out);
     z-index: 1001;
   }
+  .fab-centered svg {
+    width: 20px;
+    height: 20px;
+  }
   .fab-centered:active {
     transform: scale(0.92) translateY(2px);
-    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+    box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3);
   }
 
   .recent-grid {
