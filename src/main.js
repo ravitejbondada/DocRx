@@ -17,9 +17,13 @@ import { renderPatientProfile } from './pages/PatientProfile.js';
 import { renderVisitForm }      from './pages/VisitForm.js';
 import { renderSettings }       from './pages/Settings.js';
 import { renderFinance }        from './pages/Finance.js';
+import { renderMedicinesDB }    from './pages/MedicinesDB.js';
+import { renderTestsDB }        from './pages/TestsDB.js';
+import { renderPartnersDB }     from './pages/PartnersDB.js';
 
-// Print engine
+// Print & Share engine
 import './print/prescription.js';
+import './print/whatsapp.js';
 
 // File viewer (lazy global)
 window.__viewFile = async (key) => {
@@ -78,6 +82,9 @@ async function bootstrap() {
     route('/patients/:patientId/visit/:visitId/edit', withLayoutParams((c, p) => renderVisitForm(c, p)));
     route('/finance',                             withLayout(renderFinance));
     route('/settings',                            withLayout(renderSettings));
+    route('/medicines',                           withLayout(renderMedicinesDB));
+    route('/tests',                               withLayout(renderTestsDB));
+    route('/partners',                            withLayout(renderPartnersDB));
 
     // Start router
     initRouter(appEl);

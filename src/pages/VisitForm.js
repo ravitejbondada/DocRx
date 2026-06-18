@@ -230,6 +230,10 @@ export function renderVisitForm(container, params) {
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                 Save & Print
               </button>
+              <button type="button" class="btn btn-secondary btn-lg" onclick="if(confirm('Save and send to WhatsApp?')) { document.getElementById('save-visit-btn').click(); setTimeout(() => window.__sendWhatsApp(${visitId}), 500); }">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                WhatsApp
+              </button>
               <button type="button" class="btn btn-secondary btn-lg" onclick="window.__navigate('/patients/${patientId}')">Cancel</button>
               ${isEdit ? `
               <button type="button" class="btn btn-lg" style="background:#ef4444;color:white;margin-left:auto" onclick="window.__deleteVisit(${visitId}, ${patientId})">
@@ -242,6 +246,10 @@ export function renderVisitForm(container, params) {
               <button type="button" class="btn btn-primary btn-lg" onclick="window.__printVisit(${visitId})">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                 Print Prescription
+              </button>
+              <button type="button" class="btn btn-secondary btn-lg" onclick="window.__sendWhatsApp(${visitId})">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                WhatsApp
               </button>
             </div>
             `}

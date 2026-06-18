@@ -10,8 +10,6 @@ import { syncWithGoogleDrive } from '../backup/sync.js';
 
 export function renderSettings(container) {
   const s = queryOne('SELECT * FROM settings WHERE id=1') || {};
-  const pharmacies = queryAll('SELECT * FROM pharmacies WHERE deleted=0 ORDER BY name ASC');
-  const diagCenters = queryAll('SELECT * FROM diagnostic_centers WHERE deleted=0 ORDER BY name ASC');
   const params = getParams();
   const activeTab = params.tab || 'clinic';
 
@@ -59,7 +57,6 @@ export function renderSettings(container) {
         <div class="flex gap-1 mb-6 settings-tabs" style="background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius-lg);padding:4px;width:fit-content">
           ${[
             { id: 'clinic',   label: 'Clinic Info' },
-            { id: 'partners', label: 'Partners & Print' },
             { id: 'security', label: 'Security' },
             { id: 'backup',   label: 'Backup & Restore' },
             { id: 'storage',  label: 'Storage' },
@@ -125,74 +122,6 @@ export function renderSettings(container) {
               <button type="button" class="btn btn-secondary" id="cancel-clinic-btn">Cancel</button>
             </div>
           </form>
-        </div>
-      </div>
-
-      <!-- Partners Tab -->
-      <div id="panel-partners" class="${activeTab !== 'partners' ? 'hidden' : ''}">
-        
-        <!-- Pharmacies -->
-        <div class="card card-p mb-4">
-          <div class="flex justify-between items-center mb-4">
-            <div class="section-title">Medical Shops (Pharmacies)</div>
-            <button class="btn btn-secondary btn-sm" onclick="window.__addPartner('pharmacies')">Add Pharmacy</button>
-          </div>
-          ${pharmacies.length ? `
-          <div class="table-wrap">
-            <table class="table w-full">
-              <thead><tr><th>Name</th><th>Location / Phone</th><th>Default</th><th>Action</th></tr></thead>
-              <tbody>
-                ${pharmacies.map(p => `
-                  <tr>
-                    <td class="font-semibold">${e(p.name)}</td>
-                    <td class="text-sm text-muted">${e(p.address)} <br/> ${e(p.phone)}</td>
-                    <td>
-                      <input type="radio" name="default_pharmacy" value="${p.id}" ${p.is_default ? 'checked' : ''} onchange="window.__setDefaultPartner('pharmacies', ${p.id})">
-                    </td>
-                    <td>
-                      <div style="display:flex; gap:8px;">
-                        <button class="btn btn-secondary btn-sm" onclick="window.__editPartner('pharmacies', ${p.id})">Edit</button>
-                        <button class="btn btn-danger btn-sm" onclick="window.__deletePartner('pharmacies', ${p.id})">Delete</button>
-                      </div>
-                    </td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-          ` : '<p class="text-sm text-muted">No pharmacies added yet.</p>'}
-        </div>
-
-        <!-- Diagnostic Centers -->
-        <div class="card card-p">
-          <div class="flex justify-between items-center mb-4">
-            <div class="section-title">Diagnostic Centers</div>
-            <button class="btn btn-secondary btn-sm" onclick="window.__addPartner('diagnostic_centers')">Add Center</button>
-          </div>
-          ${diagCenters.length ? `
-          <div class="table-wrap">
-            <table class="table w-full">
-              <thead><tr><th>Name</th><th>Location / Phone</th><th>Default</th><th>Action</th></tr></thead>
-              <tbody>
-                ${diagCenters.map(p => `
-                  <tr>
-                    <td class="font-semibold">${e(p.name)}</td>
-                    <td class="text-sm text-muted">${e(p.address)} <br/> ${e(p.phone)}</td>
-                    <td>
-                      <input type="radio" name="default_diag" value="${p.id}" ${p.is_default ? 'checked' : ''} onchange="window.__setDefaultPartner('diagnostic_centers', ${p.id})">
-                    </td>
-                    <td>
-                      <div style="display:flex; gap:8px;">
-                        <button class="btn btn-secondary btn-sm" onclick="window.__editPartner('diagnostic_centers', ${p.id})">Edit</button>
-                        <button class="btn btn-danger btn-sm" onclick="window.__deletePartner('diagnostic_centers', ${p.id})">Delete</button>
-                      </div>
-                    </td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-          ` : '<p class="text-sm text-muted">No diagnostic centers added yet.</p>'}
         </div>
       </div>
 
@@ -326,7 +255,7 @@ export function renderSettings(container) {
 
   // Tab switching
   window.__switchTab = (tabId) => {
-    ['clinic','partners','security','backup','storage'].forEach(t => {
+    ['clinic','security','backup','storage'].forEach(t => {
       container.querySelector(`#panel-${t}`)?.classList.toggle('hidden', t !== tabId);
       const btn = container.querySelector(`#tab-${t}`);
       if (btn) btn.className = `btn ${t === tabId ? 'btn-primary' : 'btn-ghost'} btn-sm`;
@@ -480,108 +409,6 @@ export function renderSettings(container) {
       container.querySelector('#restore-status').textContent = '';
     }
   });
-
-  // Partner Management
-  window.__addPartner = (table) => {
-    const isPharm = table === 'pharmacies';
-    const typeLabel = isPharm ? 'Medical Shop (Pharmacy)' : 'Diagnostic Center';
-    const bodyHtml = `
-      <div style="display: flex; flex-direction: column; gap: 14px;">
-        <div class="form-group">
-          <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Name <span style="color:var(--danger)">*</span></label>
-          <input type="text" class="input" id="partner-name-input" placeholder="e.g. Care Pharmacy" style="width:100%" required />
-        </div>
-        <div class="form-group">
-          <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Address / Location (Optional)</label>
-          <input type="text" class="input" id="partner-address-input" placeholder="e.g. Hyderabad, TS" style="width:100%" />
-        </div>
-        <div class="form-group">
-          <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Phone (Optional)</label>
-          <input type="text" class="input" id="partner-phone-input" placeholder="e.g. 9876543210" style="width:100%" />
-        </div>
-      </div>
-    `;
-
-    showModal({
-      title: `Add ${isPharm ? 'Pharmacy' : 'Diagnostic Center'}`,
-      bodyHtml,
-      confirmText: 'Add Partner',
-      cancelText: 'Cancel',
-      onConfirm: (overlay) => {
-        const name = overlay.querySelector('#partner-name-input').value.trim();
-        if (!name) {
-          toast.error('Name is required.');
-          return false;
-        }
-        const address = overlay.querySelector('#partner-address-input').value.trim();
-        const phone = overlay.querySelector('#partner-phone-input').value.trim();
-
-        // If it's the first one, make it default
-        const count = queryOne(`SELECT COUNT(*) as c FROM ${table} WHERE deleted=0`).c;
-        const isDefault = count === 0 ? 1 : 0;
-        
-        run(`INSERT INTO ${table} (id, name, address, phone, is_default, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now','localtime'))`, [crypto.randomUUID(), name, address, phone, isDefault]);
-        toast.success(`${typeLabel} added.`);
-        navigate('/settings?tab=partners');
-      }
-    });
-  };
-
-  window.__deletePartner = (table, id) => {
-    if (!confirm('Are you sure you want to delete this partner?')) return;
-    run(`UPDATE ${table} SET deleted=1, deleted_at=datetime('now','localtime'), updated_at=datetime('now','localtime') WHERE id=?`, [id]);
-    navigate('/settings?tab=partners');
-  };
-
-  window.__editPartner = (table, id) => {
-    const isPharm = table === 'pharmacies';
-    const typeLabel = isPharm ? 'Medical Shop (Pharmacy)' : 'Diagnostic Center';
-    const partner = queryOne(`SELECT * FROM ${table} WHERE id=? AND deleted=0`, [id]);
-    if (!partner) return;
-
-    const bodyHtml = `
-      <div style="display: flex; flex-direction: column; gap: 14px;">
-        <div class="form-group">
-          <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Name <span style="color:var(--danger)">*</span></label>
-          <input type="text" class="input" id="partner-name-input" value="${e(partner.name)}" style="width:100%" required />
-        </div>
-        <div class="form-group">
-          <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Address / Location (Optional)</label>
-          <input type="text" class="input" id="partner-address-input" value="${e(partner.address)}" style="width:100%" />
-        </div>
-        <div class="form-group">
-          <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Phone (Optional)</label>
-          <input type="text" class="input" id="partner-phone-input" value="${e(partner.phone)}" style="width:100%" />
-        </div>
-      </div>
-    `;
-
-    showModal({
-      title: `Edit ${isPharm ? 'Pharmacy' : 'Diagnostic Center'}`,
-      bodyHtml,
-      confirmText: 'Save Changes',
-      cancelText: 'Cancel',
-      onConfirm: (overlay) => {
-        const name = overlay.querySelector('#partner-name-input').value.trim();
-        if (!name) {
-          toast.error('Name is required.');
-          return false;
-        }
-        const address = overlay.querySelector('#partner-address-input').value.trim();
-        const phone = overlay.querySelector('#partner-phone-input').value.trim();
-
-        run(`UPDATE ${table} SET name=?, address=?, phone=?, updated_at=datetime('now','localtime') WHERE id=?`, [name, address, phone, id]);
-        toast.success(`${typeLabel} updated.`);
-        navigate('/settings?tab=partners');
-      }
-    });
-  };
-
-  window.__setDefaultPartner = (table, id) => {
-    run(`UPDATE ${table} SET is_default=0 WHERE deleted=0`);
-    run(`UPDATE ${table} SET is_default=1, updated_at=datetime('now','localtime') WHERE id=?`, [id]);
-    toast.success('Default updated.');
-  };
 }
 
 function e(val) { return val != null ? String(val).replace(/"/g, '&quot;').replace(/</g, '&lt;') : ''; }
