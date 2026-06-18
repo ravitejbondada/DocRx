@@ -85,7 +85,7 @@ export function renderDashboard(container) {
     <div class="page-content slide-up">
 
       <!-- Stats -->
-      <div class="form-grid form-grid-3 mb-6">
+      <div class="form-grid form-grid-3 dashboard-stats-grid mb-6">
         
         <!-- Total Patients -->
         <div class="stat-card">
