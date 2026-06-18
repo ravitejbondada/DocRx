@@ -27,7 +27,10 @@ export function renderVisitForm(container, params) {
     // Medicine rows state
     let rxRows = [];
     if (isEdit) {
-      rxRows = queryAll('SELECT * FROM prescriptions WHERE visit_id=? AND deleted=0 ORDER BY sort_order ASC', [visitId]);
+      const rawRx = queryAll('SELECT * FROM prescriptions WHERE visit_id=? AND deleted=0 ORDER BY sort_order ASC', [visitId]);
+      const rxMap = new Map();
+      rawRx.forEach(r => { if (!rxMap.has(r.medicine_name)) rxMap.set(r.medicine_name, r); });
+      rxRows = Array.from(rxMap.values());
     }
 
   // Last visit for "Copy Prescription" feature
@@ -536,8 +539,12 @@ export function renderVisitForm(container, params) {
 
   // --- Diagnostic test rows ---
   let testRowData = [];
-  if (isEdit) testRowData = queryAll('SELECT * FROM diagnostic_tests WHERE visit_id=? AND deleted=0', [visitId]);
-
+  if (isEdit) {
+    const rawTests = queryAll('SELECT * FROM diagnostic_tests WHERE visit_id=? AND deleted=0', [visitId]);
+    const testMap = new Map();
+    rawTests.forEach(t => { if (!testMap.has(t.test_name)) testMap.set(t.test_name, t); });
+    testRowData = Array.from(testMap.values());
+  }
   function refreshTestTable() {
     const rowsEl  = container.querySelector('#test-rows');
     const emptyEl = container.querySelector('#test-empty');

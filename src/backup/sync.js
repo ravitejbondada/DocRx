@@ -164,6 +164,10 @@ export async function syncWithGoogleDrive(onStatusCallback) {
         const currentBuf = cloudDb.export();
         // Overwrite active local DB binary configuration
         await import('../db/index.js').then(({ importDBBinary }) => importDBBinary(currentBuf));
+        import('../components/Toast.js').then(({ toast }) => {
+          toast.success('Sync complete. Page refreshed with new data.');
+          setTimeout(() => window.location.reload(), 1500);
+        });
       }
     }
 

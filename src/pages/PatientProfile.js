@@ -21,8 +21,8 @@ export function renderPatientProfile(container, params) {
 
   const visits = queryAll(`
     SELECT v.*,
-           COUNT(DISTINCT rx.id) as rx_count,
-           COUNT(DISTINCT dt.id) as test_count
+           COUNT(DISTINCT rx.medicine_name) as rx_count,
+           COUNT(DISTINCT dt.test_name) as test_count
     FROM visits v
     LEFT JOIN prescriptions rx ON rx.visit_id = v.id AND rx.deleted = 0
     LEFT JOIN diagnostic_tests dt ON dt.visit_id = v.id AND dt.deleted = 0
