@@ -53,13 +53,7 @@ export function renderVisitForm(container, params) {
     </div>
 
     <div class="page-content slide-up">
-      ${isLocked ? `
-      <div class="alert alert-warning mb-4">
-        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-        This visit was recorded on ${formatDate(existing?.visit_date)}. Editing requires password verification.
-        <button type="button" class="btn btn-sm" style="margin-left:auto; background:white; color:black" onclick="window.__unlockVisit()">Unlock Edit</button>
-      </div>
-      ` : ''}
+      ${isLocked ? `` : ''}
 
       <form id="visit-form" novalidate>
         <!-- Mobile Clinical Alerts & Quick Links (visible only on mobile) -->
@@ -376,6 +370,12 @@ export function renderVisitForm(container, params) {
   // --- Unlock Logic ---
   window.__unlockVisit = () => {
     const bodyHtml = `
+      <div style="margin-bottom: 16px; color: var(--warning-text); font-size: 0.9rem; line-height: 1.4; background: var(--warning-soft); padding: 12px; border-radius: 8px; border: 1px solid rgba(245,158,11,0.2);">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <svg style="min-width:20px;width:20px;height:20px;color:var(--warning)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          <span>This visit was recorded on ${formatDate(existing?.visit_date)}. Editing requires password verification.</span>
+        </div>
+      </div>
       <div class="form-group">
         <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Admin Password</label>
         <input type="password" class="input" id="unlock-password-input" placeholder="Enter password to unlock" style="width:100%" />
@@ -387,6 +387,9 @@ export function renderVisitForm(container, params) {
       bodyHtml,
       confirmText: 'Unlock',
       cancelText: 'Cancel',
+      onCancel: () => {
+        window.history.back();
+      },
       onConfirm: async (overlay) => {
         const pwd = overlay.querySelector('#unlock-password-input').value;
         if (!pwd) {
@@ -710,6 +713,12 @@ export function renderVisitForm(container, params) {
 } // end renderInner
 
 renderInner();
+
+if (isLocked) {
+  setTimeout(() => {
+    window.__unlockVisit();
+  }, 100);
+}
 }
 
 // --- Helper Functions ---
