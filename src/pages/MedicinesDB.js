@@ -129,7 +129,7 @@ export function renderMedicinesDB(container) {
               <label class="form-label">Default Instructions</label>
               <select class="input" id="m-instructions">
                 <option value="">None</option>
-                ${['Before Food', 'After Food', 'With Food', 'Empty Stomach', 'Local Application'].map(i => 
+                ${['Before Food', 'After Food', 'With Food', 'Empty Stomach', 'Local Application', 'Take with warm water', 'Take with milk', 'Chew well', 'Apply twice a day', 'Swallow whole'].map(i => 
                   `<option value="${i}" ${med?.default_instructions === i ? 'selected' : ''}>${i}</option>`
                 ).join('')}
               </select>

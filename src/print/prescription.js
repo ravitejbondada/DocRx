@@ -3,6 +3,7 @@
 // ============================================================
 import { queryOne, queryAll } from '../db/index.js';
 import { showModal } from '../components/Modal.js';
+import { translateTelugu } from '../utils/translation.js';
 
 export function _executePrint(visitId, pharmacyId = null, diagCenterId = null) {
   const visit   = queryOne('SELECT * FROM visits WHERE id=? AND deleted=0', [visitId]);
@@ -193,16 +194,26 @@ export function _executePrint(visitId, pharmacyId = null, diagCenterId = null) {
         </tr>
       </thead>
       <tbody>
-        ${rxItems.map((r, i) => `
+        ${rxItems.map((r, i) => {
+          const freqTel = translateTelugu(r.frequency);
+          const instrTel = translateTelugu(r.instructions);
+          const hasTel = freqTel || instrTel;
+          return `
           <tr>
             <td class="med-num">${i + 1}</td>
             <td class="med-name">${r.medicine_name}</td>
             <td>${r.dosage ? `<span class="badge">${r.dosage}</span>` : '—'}</td>
-            <td>${r.frequency || '—'}</td>
+            <td>
+              <div>${r.frequency || '—'}</div>
+              ${hasTel ? `<div style="font-size: 8.5pt; color: #475569; margin-top: 3px;">${freqTel || ''}</div>` : ''}
+            </td>
             <td>${r.duration || '—'}</td>
-            <td>${r.instructions || ''}</td>
+            <td>
+              <div>${r.instructions || ''}</div>
+              ${hasTel ? `<div style="font-size: 8.5pt; color: #475569; margin-top: 3px;">${instrTel || ''}</div>` : ''}
+            </td>
           </tr>
-        `).join('')}
+        `}).join('')}
       </tbody>
     </table>` : '<p style="color:#64748b;font-style:italic;margin:12px 0">No medications prescribed.</p>'}
 

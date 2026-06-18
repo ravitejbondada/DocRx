@@ -178,12 +178,25 @@ export function renderVisitForm(container, params) {
               </div>
 
               <datalist id="freq-options">
-                <option value="1-0-1"></option>
-                <option value="1-1-1"></option>
-                <option value="1-0-0"></option>
-                <option value="0-1-0"></option>
-                <option value="0-0-1"></option>
-                <option value="SOS"></option>
+                <option value="OD (1-0-0)"></option>
+                <option value="OD (0-0-1)"></option>
+                <option value="BD (1-0-1)"></option>
+                <option value="TDS (1-1-1)"></option>
+                <option value="QID (1-1-1-1)"></option>
+                <option value="SOS (As needed)"></option>
+              </datalist>
+
+              <datalist id="instr-options">
+                <option value="Before Food"></option>
+                <option value="After Food"></option>
+                <option value="With Food"></option>
+                <option value="Empty Stomach"></option>
+                <option value="Local Application"></option>
+                <option value="Take with warm water"></option>
+                <option value="Take with milk"></option>
+                <option value="Chew well"></option>
+                <option value="Apply twice a day"></option>
+                <option value="Swallow whole"></option>
               </datalist>
 
               <div id="rx-table-header" class="hidden" style="display:grid;grid-template-columns:2fr 1fr 1.2fr 0.8fr 1fr 1.2fr 34px;gap:8px;padding:0 12px;margin-bottom:4px">
@@ -478,7 +491,7 @@ export function renderVisitForm(container, params) {
           ).join('')}
         </select>
         <input class="input" type="text" placeholder="5 days" value="${e(r.duration)}" data-field="duration" data-idx="${i}" ${isLocked ? 'disabled' : ''} />
-        <input class="input" type="text" placeholder="After Food" value="${e(r.instructions)}" data-field="instructions" data-idx="${i}" ${isLocked ? 'disabled' : ''} />
+        <input class="input" type="text" list="instr-options" placeholder="After Food" value="${e(r.instructions)}" data-field="instructions" data-idx="${i}" ${isLocked ? 'disabled' : ''} />
         ${!isLocked ? `
         <button type="button" class="btn btn-ghost btn-icon btn-sm rx-delete" data-idx="${i}" title="Remove">
           <svg width="14" height="14" fill="none" stroke="#f87171" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>

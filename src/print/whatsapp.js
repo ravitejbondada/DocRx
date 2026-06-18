@@ -1,25 +1,5 @@
 import { queryOne, queryAll } from '../db/index.js';
-
-// English to Telugu Translation Map for medical instructions
-const teluguMap = {
-  'OD (1-0-0)': 'ఉదయం 1',
-  'OD (0-0-1)': 'రాత్రి 1',
-  'BD (1-0-1)': 'ఉదయం 1, రాత్రి 1',
-  'TDS (1-1-1)': 'ఉదయం 1, మధ్యాహ్నం 1, రాత్రి 1',
-  'QID (1-1-1-1)': 'రోజుకు 4 సార్లు',
-  'SOS (As needed)': 'అవసరమైనప్పుడు',
-  
-  'Before Food': 'భోజనానికి ముందు',
-  'After Food': 'భోజనం తర్వాత',
-  'With Food': 'భోజనంతో',
-  'Empty Stomach': 'ఖాళీ కడుపుతో',
-  'Local Application': 'పైపూత'
-};
-
-function translateTelugu(text) {
-  if (!text) return '';
-  return teluguMap[text] || text;
-}
+import { translateTelugu } from '../utils/translation.js';
 
 window.__sendWhatsApp = (visitId) => {
   const visit = queryOne('SELECT * FROM visits WHERE id=? AND deleted=0', [visitId]);
@@ -46,12 +26,22 @@ window.__sendWhatsApp = (visitId) => {
       if (rx.dosage) msg += ` - ${rx.dosage}`;
       msg += `\n   `;
       
-      const freq = translateTelugu(rx.frequency);
-      const instr = translateTelugu(rx.instructions);
+      const freqEng = rx.frequency || '';
+      const instrEng = rx.instructions || '';
       const duration = rx.duration ? `${rx.duration} days` : '';
 
-      const details = [freq, instr, duration].filter(Boolean).join(' | ');
-      if (details) msg += `🔹 ${details}`;
+      // English Line
+      const engDetails = [freqEng, instrEng, duration].filter(Boolean).join(' | ');
+      if (engDetails) msg += `🔹 ${engDetails}`;
+
+      // Telugu Translation Line
+      const freqTel = translateTelugu(freqEng);
+      const instrTel = translateTelugu(instrEng);
+      
+      if (freqTel || instrTel) {
+        const telDetails = [freqTel || freqEng, instrTel || instrEng, duration].filter(Boolean).join(' | ');
+        msg += `\n   🔸 _${telDetails}_`;
+      }
     });
     msg += `\n`;
   }
