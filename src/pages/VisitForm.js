@@ -307,13 +307,29 @@ export function renderVisitForm(container, params) {
   // --- Quick Edit Alerts & Delete Visit ---
   window.__quickEditAlerts = async (pId) => {
     const { queryOne, run } = await import('../db/index.js');
+    const { showModal } = await import('../components/Modal.js');
     const p = queryOne('SELECT allergies, chronic_conditions FROM patients WHERE id=? AND deleted=0', [pId]);
-    const a = prompt('Allergies (leave empty if none):', p.allergies || '');
-    if (a === null) return;
-    const c = prompt('Chronic Conditions (leave empty if none):', p.chronic_conditions || '');
-    if (c === null) return;
-    run('UPDATE patients SET allergies=?, chronic_conditions=?, updated_at=datetime(\'now\',\'localtime\') WHERE id=?', [a.trim()||null, c.trim()||null, pId]);
-    window.location.reload();
+    
+    showModal({
+      title: 'Edit Alerts',
+      bodyHtml: `
+        <div class="form-group mb-3">
+          <label class="form-label" style="font-size:0.85rem">Allergies (leave empty if none)</label>
+          <input type="text" class="input" id="edit-allergies-input" value="${e(p.allergies || '')}" style="width:100%" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="font-size:0.85rem">Chronic Conditions (leave empty if none)</label>
+          <input type="text" class="input" id="edit-chronic-input" value="${e(p.chronic_conditions || '')}" style="width:100%" />
+        </div>
+      `,
+      confirmText: 'Save Alerts',
+      onConfirm: (overlay) => {
+        const a = overlay.querySelector('#edit-allergies-input').value;
+        const c = overlay.querySelector('#edit-chronic-input').value;
+        run('UPDATE patients SET allergies=?, chronic_conditions=?, updated_at=datetime(\'now\',\'localtime\') WHERE id=?', [a.trim()||null, c.trim()||null, pId]);
+        window.location.reload();
+      }
+    });
   };
 
   window.__deleteVisit = async (vId, pId) => {
@@ -362,7 +378,7 @@ export function renderVisitForm(container, params) {
     const bodyHtml = `
       <div class="form-group">
         <label class="form-label" style="font-weight:600; font-size:0.9rem; margin-bottom:6px; display:block;">Admin Password</label>
-        <input type="password" class="input" id="unlock-password-input" placeholder="Enter password to unlock" style="width:100%" autofocus />
+        <input type="password" class="input" id="unlock-password-input" placeholder="Enter password to unlock" style="width:100%" />
       </div>
     `;
 
