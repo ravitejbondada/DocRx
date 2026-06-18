@@ -21,9 +21,39 @@ const teluguMap = {
   'Swallow whole': 'పూర్తిగా మింగండి (నమలవద్దు)'
 };
 
+// Sync version (just dictionary)
 export function translateTelugu(text) {
   if (!text) return '';
   const trimmed = text.trim();
-  // Return translation if exists, otherwise return null so the caller knows it wasn't translated
   return teluguMap[trimmed] || null;
+}
+
+// Async version (dictionary + Google Translate API fallback)
+export async function translateTeluguAsync(text) {
+  if (!text) return '';
+  const trimmed = text.trim();
+  
+  // 1. Check local dictionary first
+  if (teluguMap[trimmed]) {
+    return teluguMap[trimmed];
+  }
+
+  // 2. Attempt free Google Translate API
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=te&dt=t&q=${encodeURIComponent(trimmed)}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    // The translated text is in data[0][i][0]
+    let translated = '';
+    if (data && data[0]) {
+      data[0].forEach(part => {
+        if (part[0]) translated += part[0];
+      });
+    }
+    return translated || null;
+  } catch (err) {
+    console.error('Translation failed:', err);
+    return null; // Fallback to null if offline or error
+  }
 }

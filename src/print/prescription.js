@@ -3,9 +3,13 @@
 // ============================================================
 import { queryOne, queryAll } from '../db/index.js';
 import { showModal } from '../components/Modal.js';
-import { translateTelugu } from '../utils/translation.js';
+import { translateTeluguAsync } from '../utils/translation.js';
 
-export function _executePrint(visitId, pharmacyId = null, diagCenterId = null) {
+export async function _executePrint(visitId, pharmacyId = null, diagCenterId = null, win = null) {
+  if (!win) {
+    win = window.open('', '_blank');
+  }
+  win.document.write('<div style="font-family:sans-serif;padding:20px;text-align:center;color:#64748b;">Generating Prescription...</div>');
   const visit   = queryOne('SELECT * FROM visits WHERE id=? AND deleted=0', [visitId]);
   const patient = queryOne('SELECT * FROM patients WHERE id=? AND deleted=0', [visit.patient_id]);
   const settings= queryOne('SELECT * FROM settings WHERE id=1') || {};
@@ -17,6 +21,12 @@ export function _executePrint(visitId, pharmacyId = null, diagCenterId = null) {
   
   let diagCenter = null;
   if (diagCenterId) diagCenter = queryOne('SELECT * FROM diagnostic_centers WHERE id=? AND deleted=0', [diagCenterId]);
+
+  // Fetch async translations
+  for (let r of rxItems) {
+    r._freqTel = await translateTeluguAsync(r.frequency);
+    r._instrTel = await translateTeluguAsync(r.instructions);
+  }
 
   const age = patient.dob ? calcAge(patient.dob) : patient.age;
 
@@ -195,8 +205,8 @@ export function _executePrint(visitId, pharmacyId = null, diagCenterId = null) {
       </thead>
       <tbody>
         ${rxItems.map((r, i) => {
-          const freqTel = translateTelugu(r.frequency);
-          const instrTel = translateTelugu(r.instructions);
+          const freqTel = r._freqTel;
+          const instrTel = r._instrTel;
           const hasTel = freqTel || instrTel;
           return `
           <tr>
@@ -245,7 +255,7 @@ export function _executePrint(visitId, pharmacyId = null, diagCenterId = null) {
 </body>
 </html>`;
 
-  const win = window.open('', '_blank');
+  win.document.open();
   win.document.write(html);
   win.document.close();
   win.focus();
@@ -258,7 +268,8 @@ window.__printVisit = (visitId) => {
   const diagCenters = queryAll('SELECT * FROM diagnostic_centers WHERE deleted=0 ORDER BY name ASC');
   
   if (pharmacies.length === 0 && diagCenters.length === 0) {
-    return _executePrint(visitId, null, null);
+    const win = window.open('', '_blank');
+    return _executePrint(visitId, null, null, win);
   }
 
   const defaultPharmId = pharmacies.find(p => p.is_default)?.id || '';
@@ -294,7 +305,8 @@ window.__printVisit = (visitId) => {
     onConfirm: (overlay) => {
       const pharmId = overlay.querySelector('#print-pharmacy-select')?.value || null;
       const diagId = overlay.querySelector('#print-diag-select')?.value || null;
-      _executePrint(visitId, pharmId, diagId);
+      const win = window.open('', '_blank');
+      _executePrint(visitId, pharmId, diagId, win);
     }
   });
 };

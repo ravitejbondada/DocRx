@@ -1,7 +1,7 @@
 import { queryOne, queryAll } from '../db/index.js';
-import { translateTelugu } from '../utils/translation.js';
+import { translateTeluguAsync } from '../utils/translation.js';
 
-window.__sendWhatsApp = (visitId) => {
+window.__sendWhatsApp = async (visitId) => {
   const visit = queryOne('SELECT * FROM visits WHERE id=? AND deleted=0', [visitId]);
   if (!visit) return;
   const patient = queryOne('SELECT * FROM patients WHERE id=? AND deleted=0', [visit.patient_id]);
@@ -21,7 +21,8 @@ window.__sendWhatsApp = (visitId) => {
 
   if (rxItems.length > 0) {
     msg += `\n💊 *Prescription:*\n`;
-    rxItems.forEach((rx, i) => {
+    for (let i = 0; i < rxItems.length; i++) {
+      const rx = rxItems[i];
       msg += `\n${i + 1}. *${rx.medicine_name}*`;
       if (rx.dosage) msg += ` - ${rx.dosage}`;
       msg += `\n   `;
@@ -35,14 +36,14 @@ window.__sendWhatsApp = (visitId) => {
       if (engDetails) msg += `🔹 ${engDetails}`;
 
       // Telugu Translation Line
-      const freqTel = translateTelugu(freqEng);
-      const instrTel = translateTelugu(instrEng);
+      const freqTel = await translateTeluguAsync(freqEng);
+      const instrTel = await translateTeluguAsync(instrEng);
       
       if (freqTel || instrTel) {
         const telDetails = [freqTel || freqEng, instrTel || instrEng, duration].filter(Boolean).join(' | ');
         msg += `\n   🔸 _${telDetails}_`;
       }
-    });
+    }
     msg += `\n`;
   }
 
