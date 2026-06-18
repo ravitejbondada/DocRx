@@ -19,8 +19,10 @@ export async function renderSetup(container) {
         <div class="auth-card fade-in" style="max-width:480px; text-align:center;">
           <div class="auth-logo" style="justify-content:center; margin-bottom: 24px;">
             <div class="auth-logo-icon">
-              <svg fill="none" stroke="white" viewBox="0 0 24 24" stroke-width="2.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+              <svg fill="none" stroke="white" viewBox="0 0 100 100" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="35" cy="18" r="5" fill="white" stroke="none" />
+                <circle cx="65" cy="18" r="5" fill="white" stroke="none" />
+                <path d="M 35 22 C 35 34, 42 40, 50 40 L 82 40 A 12 12 0 0 1 82 64 L 62 64 L 62 84 A 12 12 0 0 1 38 84 L 38 64 L 18 64 A 12 12 0 0 1 18 40 L 50 40 C 58 40, 65 34, 65 22" />
               </svg>
             </div>
             <div style="text-align:left">
@@ -108,8 +110,10 @@ export async function renderSetup(container) {
       <div class="auth-card fade-in" style="max-width:520px">
         <div class="auth-logo">
           <div class="auth-logo-icon">
-            <svg fill="none" stroke="white" viewBox="0 0 24 24" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+            <svg fill="none" stroke="white" viewBox="0 0 100 100" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="35" cy="18" r="5" fill="white" stroke="none" />
+              <circle cx="65" cy="18" r="5" fill="white" stroke="none" />
+              <path d="M 35 22 C 35 34, 42 40, 50 40 L 82 40 A 12 12 0 0 1 82 64 L 62 64 L 62 84 A 12 12 0 0 1 38 84 L 38 64 L 18 64 A 12 12 0 0 1 18 40 L 50 40 C 58 40, 65 34, 65 22" />
             </svg>
           </div>
           <div>
