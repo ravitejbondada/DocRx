@@ -1336,9 +1336,6 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
     border-color: var(--teal-500) !important;
     color: white !important;
   }
-  .settings-tabs .btn:last-child {
-    grid-column: span 2;
-  }
 
   /* Settings page card layout fixes */
   #panel-backup .flex,
