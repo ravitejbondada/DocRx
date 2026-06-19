@@ -65,7 +65,6 @@ export async function _executePrint(visitId, pharmacyId = null, diagCenterId = n
       <div class="print-footer-above">
         <div class="followup-note">
           ${isPrescriptionPage && visit.follow_up_date ? `<strong>Follow-up:</strong> ${formatDate(visit.follow_up_date)}` : ''}
-          ${isPrescriptionPage && visit.clinical_notes ? `<div style="margin-top:6px;font-size:8.5pt;color:#475569">${visit.clinical_notes}</div>` : ''}
         </div>
         <div class="signature-line">
           <div class="signature-dash"></div>
@@ -108,7 +107,7 @@ export async function _executePrint(visitId, pharmacyId = null, diagCenterId = n
     
     .print-page {
       width: 210mm;
-      min-height: 297mm;
+      min-height: 280mm;
       background: #ffffff;
       color: #0f172a;
       padding: 15mm;
@@ -147,12 +146,13 @@ export async function _executePrint(visitId, pharmacyId = null, diagCenterId = n
     .medicine-print-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
     .medicine-print-table th {
       background: #f1f5f9; padding: 7px 10px; text-align: left;
-      font-size: 8pt; font-weight: 700; color: #64748b; text-transform: uppercase;
+      font-size: 8pt; font-weight: 700; color: #475569 !important; text-transform: uppercase;
       border-bottom: 1.5px solid #e2e8f0;
     }
     .medicine-print-table td {
       padding: 8px 10px; font-size: 10pt; vertical-align: top;
       border-bottom: 1px solid #f1f5f9;
+      color: #0f172a !important;
     }
     .medicine-print-table .med-num { color: #94a3b8; font-size: 8.5pt; min-width: 20px; }
     .medicine-print-table .med-name { font-weight: 600; }
@@ -270,7 +270,9 @@ export async function _executePrint(visitId, pharmacyId = null, diagCenterId = n
       if (isWhatsApp) {
         html2pdf().set(opt).from(html).output('blob').then(async (blob) => {
           const file = new File([blob], opt.filename, { type: 'application/pdf' });
-          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+          if (isMobile && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
              // To bypass the "Must be handling a user gesture" restriction caused by async delay,
              // we show a modal with a "Share" button, which provides a fresh synchronous user gesture.
              import('../components/Modal.js').then(({ showModal }) => {
@@ -295,8 +297,25 @@ export async function _executePrint(visitId, pharmacyId = null, diagCenterId = n
              });
           } else {
              html2pdf().set(opt).from(html).save().then(() => {
-               alert("Your device doesn't support direct PDF sharing to WhatsApp. The PDF has been downloaded. Please send it manually via WhatsApp.");
-               if (win) win.close();
+               import('../components/Modal.js').then(({ showModal }) => {
+                 showModal({
+                   title: 'PDF Downloaded',
+                   bodyHtml: '<p>Direct file sharing is not supported on desktop browsers.</p><p>The PDF has been downloaded to your computer. Click below to open WhatsApp Web, and manually attach the downloaded PDF.</p>',
+                   confirmText: 'Open WhatsApp Web',
+                   cancelText: 'Close',
+                   onConfirm: () => {
+                     let waUrl = `https://web.whatsapp.com/send?text=Please%20find%20the%20attached%20prescription%20PDF.`;
+                     if (patient.phone) {
+                       let p = patient.phone.replace(/[^0-9]/g, '');
+                       if (p.length === 10) p = '91' + p;
+                       waUrl = `https://web.whatsapp.com/send?phone=${p}&text=Please%20find%20the%20attached%20prescription%20PDF.`;
+                     }
+                     window.open(waUrl, '_blank');
+                     if (win) win.close();
+                   },
+                   onCancel: () => { if (win) win.close(); }
+                 });
+               });
              });
           }
         }).catch(err => {
