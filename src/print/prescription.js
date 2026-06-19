@@ -258,7 +258,9 @@ export async function _executePrint(visitId, pharmacyId = null, diagCenterId = n
 </body>
 </html>`;
 
-  if (isDownload) {
+  const isWhatsApp = options.mode === 'whatsapp';
+
+  if (isDownload || isWhatsApp) {
     if (window.html2pdf) {
       const opt = {
         margin: 0,
@@ -267,9 +269,32 @@ export async function _executePrint(visitId, pharmacyId = null, diagCenterId = n
         html2canvas: { scale: 2 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
-      html2pdf().set(opt).from(html).save().then(() => {
-        import('../components/Toast.js').then(({ toast }) => toast.success('PDF downloaded successfully!'));
-      });
+
+      if (isWhatsApp) {
+        html2pdf().set(opt).from(html).output('blob').then(async (blob) => {
+          const file = new File([blob], opt.filename, { type: 'application/pdf' });
+          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+             try {
+               await navigator.share({
+                 files: [file],
+                 title: 'DocRx Prescription'
+               });
+             } catch (e) {
+               console.log('Share canceled or failed', e);
+             }
+             if (win) win.close();
+          } else {
+             html2pdf().set(opt).from(html).save().then(() => {
+               alert("Your device doesn't support direct PDF sharing to WhatsApp. The PDF has been downloaded. Please send it manually via WhatsApp.");
+               if (win) win.close();
+             });
+          }
+        });
+      } else {
+        html2pdf().set(opt).from(html).save().then(() => {
+          import('../components/Toast.js').then(({ toast }) => toast.success('PDF downloaded successfully!'));
+        });
+      }
     } else {
       console.error("html2pdf is not loaded");
     }
