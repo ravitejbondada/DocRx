@@ -9,9 +9,9 @@ export async function _executePrint(visitId, pharmacyId = null, diagCenterId = n
   const isDownload = options.mode === 'download';
   let win = options.win;
 
-  if (!isDownload) {
+  if (!isDownload && options.mode !== 'whatsapp') {
     if (!win) win = window.open('', '_blank');
-    win.document.write('<div style="font-family:sans-serif;padding:20px;text-align:center;color:#64748b;">Generating Prescription...</div>');
+    if (win) win.document.write('<div style="font-family:sans-serif;padding:20px;text-align:center;color:#64748b;">Generating Prescription...</div>');
   }
   const visit   = queryOne('SELECT * FROM visits WHERE id=? AND deleted=0', [visitId]);
   const patient = queryOne('SELECT * FROM patients WHERE id=? AND deleted=0', [visit.patient_id]);
@@ -57,11 +57,6 @@ export async function _executePrint(visitId, pharmacyId = null, diagCenterId = n
       <div class="pb-item"><label>Date</label><span>${formatDate(visit.visit_date)}</span></div>
       ${patient.blood_group ? `<div class="pb-item"><label>Blood Group</label><span>${patient.blood_group}</span></div>` : ''}
     </div>
-
-    ${patient.allergies ? `
-    <div class="allergy-alert">
-      <strong>⚠ Allergy Alert:</strong> ${patient.allergies}
-    </div>` : ''}
   `;
 
   const footerHtml = (isPrescriptionPage, partner) => `
@@ -108,12 +103,14 @@ export async function _executePrint(visitId, pharmacyId = null, diagCenterId = n
     @page { size: A4 portrait; margin: 0; }
     html, body {
       font-family: 'Inter', Arial, sans-serif;
-      color: #000; background: #fff; font-size: 11pt;
+      color: #1e293b; background: #ffffff !important; font-size: 11pt;
     }
     
     .print-page {
       width: 210mm;
       min-height: 297mm;
+      background: #ffffff;
+      color: #0f172a;
       padding: 15mm;
       display: flex;
       flex-direction: column;
@@ -274,21 +271,38 @@ export async function _executePrint(visitId, pharmacyId = null, diagCenterId = n
         html2pdf().set(opt).from(html).output('blob').then(async (blob) => {
           const file = new File([blob], opt.filename, { type: 'application/pdf' });
           if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-             try {
-               await navigator.share({
-                 files: [file],
-                 title: 'DocRx Prescription'
+             // To bypass the "Must be handling a user gesture" restriction caused by async delay,
+             // we show a modal with a "Share" button, which provides a fresh synchronous user gesture.
+             import('../components/Modal.js').then(({ showModal }) => {
+               showModal({
+                 title: 'Ready to Share',
+                 bodyHtml: '<p>The prescription PDF has been generated. Click <strong>Share</strong> below and select WhatsApp.</p>',
+                 confirmText: 'Share to WhatsApp',
+                 cancelText: 'Cancel',
+                 onConfirm: async () => {
+                   try {
+                     await navigator.share({
+                       files: [file],
+                       title: 'DocRx Prescription'
+                     });
+                   } catch (e) {
+                     console.log('Share canceled or failed', e);
+                   }
+                   if (win) win.close();
+                 },
+                 onCancel: () => { if (win) win.close(); }
                });
-             } catch (e) {
-               console.log('Share canceled or failed', e);
-             }
-             if (win) win.close();
+             });
           } else {
              html2pdf().set(opt).from(html).save().then(() => {
                alert("Your device doesn't support direct PDF sharing to WhatsApp. The PDF has been downloaded. Please send it manually via WhatsApp.");
                if (win) win.close();
              });
           }
+        }).catch(err => {
+          console.error("PDF generation failed:", err);
+          alert("Failed to generate PDF for WhatsApp.");
+          if (win) win.close();
         });
       } else {
         html2pdf().set(opt).from(html).save().then(() => {
