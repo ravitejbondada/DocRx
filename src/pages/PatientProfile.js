@@ -155,7 +155,10 @@ export function renderPatientProfile(container, params) {
 
   // Expand/collapse timeline cards
   container.querySelectorAll('.timeline-header').forEach(header => {
-    header.addEventListener('click', () => {
+    header.addEventListener('click', (e) => {
+      // Ignore clicks on buttons, inputs, labels inside the header
+      if (e.target.closest('button') || e.target.closest('input') || e.target.closest('label')) return;
+
       const item = header.closest('.timeline-item');
       item.classList.toggle('expanded');
       const chevron = header.querySelector('.timeline-chevron');
@@ -280,26 +283,28 @@ function renderTimelineCard(v, patientId, index) {
           </div>
         </div>
         <div class="flex items-center gap-2 timeline-actions">
-          <label class="btn btn-ghost btn-icon" title="Attach Report" style="cursor:pointer;position:relative;padding:12px;" onclick="event.stopPropagation()">
+          <label class="btn btn-ghost btn-icon" title="Attach Report" style="cursor:pointer;position:relative;padding:12px;">
             <svg style="width:24px;height:24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
             <input type="file" class="hidden visit-file-upload" data-vid="${v.id}" accept="image/*,application/pdf" multiple />
           </label>
-          ${v.attachment_idb_key ? `<button class="btn btn-ghost btn-icon" style="padding:12px;" title="View Report" onclick="event.stopPropagation();window.__viewFile('${v.attachment_idb_key}')"><svg style="width:24px;height:24px;" fill="none" stroke="var(--teal-400)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button>` : ''}
+          ${v.attachment_idb_key ? `<button class="btn btn-ghost btn-icon" style="padding:12px;" title="View Report" onclick="window.__viewFile('${v.attachment_idb_key}')"><svg style="width:24px;height:24px;" fill="none" stroke="var(--teal-400)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button>` : ''}
           <button class="btn btn-ghost btn-icon" style="padding:12px;" title="Edit Visit"
-                  onclick="event.stopPropagation();window.__navigate('/patients/${patientId}/visit/${v.id}/edit')">
+                  onclick="window.__navigate('/patients/${patientId}/visit/${v.id}/edit')">
             <svg style="width:24px;height:24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
           </button>
           <button class="btn btn-ghost btn-icon hide-on-mobile" style="padding:12px;" title="Print Prescription"
-                  onclick="event.stopPropagation();window.__printVisit(${v.id})">
+                  onclick="window.__printVisit(${v.id})">
             <svg style="width:24px;height:24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
           </button>
           <button class="btn btn-ghost btn-icon hide-on-desktop" style="padding:12px;" title="Download PDF"
-                  onclick="event.stopPropagation();window.__downloadVisitPDF(${v.id})">
+                  onclick="window.__downloadVisitPDF(${v.id})">
             <svg style="width:24px;height:24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
           </button>
           <button class="btn btn-ghost btn-icon" style="padding:12px;" title="Send via WhatsApp"
-                  onclick="event.stopPropagation();window.__sendWhatsApp(${v.id})">
-            <svg style="width:24px;height:24px;" fill="none" stroke="var(--teal-500)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                  onclick="window.__sendWhatsApp(${v.id})">
+            <svg viewBox="0 0 24 24" fill="#25D366" style="width:24px;height:24px;">
+              <path d="M12.031 0C5.398 0 .016 5.383.016 12.016c0 2.12.553 4.186 1.604 6L.016 24l6.146-1.611a11.964 11.964 0 005.869 1.53h.005c6.632 0 12.013-5.383 12.013-12.015C24.049 5.383 18.663 0 12.031 0zm0 22.023h-.004a9.945 9.945 0 01-5.068-1.385l-.364-.216-3.766.987.997-3.668-.237-.377a9.922 9.922 0 01-1.523-5.349c0-5.498 4.475-9.972 9.972-9.972 5.497 0 9.972 4.474 9.972 9.972 0 5.498-4.475 9.973-9.972 9.973zm5.474-7.48c-.3-.15-1.776-.877-2.052-.977-.275-.1-.476-.15-.676.15-.2.3-.776.977-.951 1.177-.175.2-.35.225-.65.075-.3-.15-1.267-.467-2.414-1.49-.893-.796-1.496-1.78-1.671-2.08-.175-.3-.018-.462.132-.612.135-.135.3-.35.45-.525.15-.175.2-.3.3-.5.1-.2.05-.375-.025-.525-.075-.15-.676-1.63-.926-2.23-.243-.585-.49-.505-.676-.514-.175-.01-.375-.01-.575-.01-.2 0-.525.075-.8.375-.275.3-1.05 1.026-1.05 2.5 0 1.475 1.075 2.9 1.225 3.1.15.2 2.114 3.226 5.122 4.526 2.05.885 2.802.952 3.844.796 1.134-.17 3.526-1.442 4.026-2.836.5-1.394.5-2.586.35-2.836-.15-.25-.55-.4-.85-.55z"></path>
+            </svg>
           </button>
           <svg class="timeline-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                style="width:24px;height:24px;transition:transform 0.2s; margin-left:8px;">
