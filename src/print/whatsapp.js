@@ -2,12 +2,17 @@ import { queryOne, queryAll } from '../db/index.js';
 import { translateTeluguAsync } from '../utils/translation.js';
 
 window.__sendWhatsApp = async (visitId) => {
-  const visit = queryOne('SELECT * FROM visits WHERE id=? AND deleted=0', [visitId]);
-  if (!visit) return;
-  const patient = queryOne('SELECT * FROM patients WHERE id=? AND deleted=0', [visit.patient_id]);
-  const settings= queryOne('SELECT * FROM settings WHERE id=1') || {};
-  const rxItems = queryAll('SELECT * FROM prescriptions WHERE visit_id=? AND deleted=0 ORDER BY sort_order ASC', [visitId]);
-  const tests   = queryAll('SELECT * FROM diagnostic_tests WHERE visit_id=? AND deleted=0', [visitId]);
+  // OPEN WINDOW SYNCHRONOUSLY TO BYPASS POPUP BLOCKERS
+  const win = window.open('', '_blank');
+  win.document.write('<div style="font-family:sans-serif;padding:20px;text-align:center;color:#64748b;">Generating WhatsApp message...</div>');
+
+  try {
+    const visit = queryOne('SELECT * FROM visits WHERE id=? AND deleted=0', [visitId]);
+    if (!visit) { win.close(); return; }
+    const patient = queryOne('SELECT * FROM patients WHERE id=? AND deleted=0', [visit.patient_id]);
+    const settings= queryOne('SELECT * FROM settings WHERE id=1') || {};
+    const rxItems = queryAll('SELECT * FROM prescriptions WHERE visit_id=? AND deleted=0 ORDER BY sort_order ASC', [visitId]);
+    const tests   = queryAll('SELECT * FROM diagnostic_tests WHERE visit_id=? AND deleted=0', [visitId]);
 
   let msg = `🏥 *${settings.clinic_name || 'Clinic'}*\n`;
   msg += `*Dr. ${settings.doctor_first_name || ''} ${settings.doctor_last_name || ''}* (${settings.doctor_qualification || ''})\n\n`;
@@ -79,6 +84,23 @@ window.__sendWhatsApp = async (visitId) => {
     phoneStr = `phone=${p}&`;
   }
 
-  const waUrl = `https://api.whatsapp.com/send?${phoneStr}text=${encodedMsg}`;
-  window.open(waUrl, '_blank');
+  // Device detection for WhatsApp scheme
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
+  let waUrl = '';
+  if (isMobile) {
+    // Opens native app
+    waUrl = `whatsapp://send?${phoneStr}text=${encodedMsg}`;
+  } else {
+    // Opens WhatsApp Web on desktop
+    waUrl = `https://web.whatsapp.com/send?${phoneStr}text=${encodedMsg}`;
+  }
+
+  // Redirect the synchronously opened window
+  win.location.href = waUrl;
+
+  } catch (err) {
+    console.error('WhatsApp Error:', err);
+    win.close();
+  }
 };

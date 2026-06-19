@@ -5,11 +5,14 @@ import { queryOne, queryAll } from '../db/index.js';
 import { showModal } from '../components/Modal.js';
 import { translateTeluguAsync } from '../utils/translation.js';
 
-export async function _executePrint(visitId, pharmacyId = null, diagCenterId = null, win = null) {
-  if (!win) {
-    win = window.open('', '_blank');
+export async function _executePrint(visitId, pharmacyId = null, diagCenterId = null, options = {}) {
+  const isDownload = options.mode === 'download';
+  let win = options.win;
+
+  if (!isDownload) {
+    if (!win) win = window.open('', '_blank');
+    win.document.write('<div style="font-family:sans-serif;padding:20px;text-align:center;color:#64748b;">Generating Prescription...</div>');
   }
-  win.document.write('<div style="font-family:sans-serif;padding:20px;text-align:center;color:#64748b;">Generating Prescription...</div>');
   const visit   = queryOne('SELECT * FROM visits WHERE id=? AND deleted=0', [visitId]);
   const patient = queryOne('SELECT * FROM patients WHERE id=? AND deleted=0', [visit.patient_id]);
   const settings= queryOne('SELECT * FROM settings WHERE id=1') || {};
@@ -255,11 +258,28 @@ export async function _executePrint(visitId, pharmacyId = null, diagCenterId = n
 </body>
 </html>`;
 
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  setTimeout(() => { win.print(); win.close(); }, 800);
+  if (isDownload) {
+    if (window.html2pdf) {
+      const opt = {
+        margin: 0,
+        filename: `Prescription_${patient.patient_code}_${formatDate(visit.visit_date).replace(/ /g, '_')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(html).save().then(() => {
+        import('../components/Toast.js').then(({ toast }) => toast.success('PDF downloaded successfully!'));
+      });
+    } else {
+      console.error("html2pdf is not loaded");
+    }
+  } else {
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); win.close(); }, 800);
+  }
 }
 
 // Expose globally for onclick
@@ -269,7 +289,7 @@ window.__printVisit = (visitId) => {
   
   if (pharmacies.length === 0 && diagCenters.length === 0) {
     const win = window.open('', '_blank');
-    return _executePrint(visitId, null, null, win);
+    return _executePrint(visitId, null, null, { win });
   }
 
   const defaultPharmId = pharmacies.find(p => p.is_default)?.id || '';
@@ -306,7 +326,55 @@ window.__printVisit = (visitId) => {
       const pharmId = overlay.querySelector('#print-pharmacy-select')?.value || null;
       const diagId = overlay.querySelector('#print-diag-select')?.value || null;
       const win = window.open('', '_blank');
-      _executePrint(visitId, pharmId, diagId, win);
+      _executePrint(visitId, pharmId, diagId, { win });
+    }
+  });
+};
+
+window.__downloadVisitPDF = (visitId) => {
+  const pharmacies = queryAll('SELECT * FROM pharmacies WHERE deleted=0 ORDER BY name ASC');
+  const diagCenters = queryAll('SELECT * FROM diagnostic_centers WHERE deleted=0 ORDER BY name ASC');
+  
+  import('../components/Toast.js').then(({ toast }) => toast.info('Generating PDF...'));
+  
+  if (pharmacies.length === 0 && diagCenters.length === 0) {
+    return _executePrint(visitId, null, null, { mode: 'download' });
+  }
+
+  const defaultPharmId = pharmacies.find(p => p.is_default)?.id || '';
+  const defaultDiagId = diagCenters.find(d => d.is_default)?.id || '';
+
+  const bodyHtml = `
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      ${pharmacies.length ? `
+      <div class="form-group">
+        <label class="form-label" style="font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; display: block;">Medical Shop (Pharmacy)</label>
+        <select class="input" id="print-pharmacy-select" style="width: 100%;">
+          <option value="">-- Do not recommend --</option>
+          ${pharmacies.map(p => `<option value="${p.id}" ${p.id === defaultPharmId ? 'selected' : ''}>${e(p.name)}</option>`).join('')}
+        </select>
+      </div>` : ''}
+
+      ${diagCenters.length ? `
+      <div class="form-group">
+        <label class="form-label" style="font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; display: block;">Diagnostic Center</label>
+        <select class="input" id="print-diag-select" style="width: 100%;">
+          <option value="">-- Do not recommend --</option>
+          ${diagCenters.map(p => `<option value="${p.id}" ${p.id === defaultDiagId ? 'selected' : ''}>${e(p.name)}</option>`).join('')}
+        </select>
+      </div>` : ''}
+    </div>
+  `;
+
+  showModal({
+    title: 'Download PDF Options',
+    bodyHtml,
+    confirmText: 'Download',
+    cancelText: 'Cancel',
+    onConfirm: (overlay) => {
+      const pharmId = overlay.querySelector('#print-pharmacy-select')?.value || null;
+      const diagId = overlay.querySelector('#print-diag-select')?.value || null;
+      _executePrint(visitId, pharmId, diagId, { mode: 'download' });
     }
   });
 };

@@ -289,9 +289,17 @@ function renderTimelineCard(v, patientId, index) {
                   onclick="event.stopPropagation();window.__navigate('/patients/${patientId}/visit/${v.id}/edit')">
             <svg style="width:24px;height:24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
           </button>
-          <button class="btn btn-ghost btn-icon" style="padding:12px;" title="Print Prescription"
+          <button class="btn btn-ghost btn-icon hide-on-mobile" style="padding:12px;" title="Print Prescription"
                   onclick="event.stopPropagation();window.__printVisit(${v.id})">
             <svg style="width:24px;height:24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+          </button>
+          <button class="btn btn-ghost btn-icon hide-on-desktop" style="padding:12px;" title="Download PDF"
+                  onclick="event.stopPropagation();window.__downloadVisitPDF(${v.id})">
+            <svg style="width:24px;height:24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          </button>
+          <button class="btn btn-ghost btn-icon" style="padding:12px;" title="Send via WhatsApp"
+                  onclick="event.stopPropagation();window.__sendWhatsApp(${v.id})">
+            <svg style="width:24px;height:24px;" fill="none" stroke="var(--teal-500)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
           </button>
           <svg class="timeline-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                style="width:24px;height:24px;transition:transform 0.2s; margin-left:8px;">

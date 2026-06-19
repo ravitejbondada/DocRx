@@ -663,6 +663,26 @@ export function renderVisitForm(container, params) {
     const btn = container.querySelector('#save-visit-btn');
     btn.disabled = true;
 
+    // --- SYNC DOM TO ARRAYS BEFORE SAVE TO PREVENT LOST DATA ---
+    container.querySelectorAll('.rx-row').forEach(row => {
+      const idx = parseInt(row.dataset.idx, 10);
+      const medInp = row.querySelector('.rx-med');
+      if (medInp) rxRowData[idx].medicine_name = medInp.value;
+      row.querySelectorAll('[data-field]').forEach(inp => {
+        rxRowData[idx][inp.dataset.field] = inp.value;
+      });
+    });
+
+    container.querySelectorAll('.test-row').forEach(row => {
+      const idx = parseInt(row.dataset.idx, 10);
+      const testInp = row.querySelector('.test-name');
+      if (testInp) testRowData[idx].test_name = testInp.value;
+      row.querySelectorAll('[data-field]').forEach(inp => {
+        testRowData[idx][inp.dataset.field] = inp.value;
+      });
+    });
+    // -------------------------------------------------------------
+
     try {
       const vId = isEdit ? visitId : crypto.randomUUID();
       if (isEdit) {
