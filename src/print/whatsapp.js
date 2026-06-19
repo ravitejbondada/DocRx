@@ -4,6 +4,10 @@ import { translateTeluguAsync } from '../utils/translation.js';
 window.__sendWhatsApp = async (visitId) => {
   // OPEN WINDOW SYNCHRONOUSLY TO BYPASS POPUP BLOCKERS
   const win = window.open('', '_blank');
+  if (!win) {
+    alert("Popup blocked! Please allow popups for this site to use WhatsApp.");
+    return;
+  }
   win.document.write('<div style="font-family:sans-serif;padding:20px;text-align:center;color:#64748b;">Generating WhatsApp message...</div>');
 
   try {

@@ -289,6 +289,7 @@ window.__printVisit = (visitId) => {
   
   if (pharmacies.length === 0 && diagCenters.length === 0) {
     const win = window.open('', '_blank');
+    if (!win) { alert("Popup blocked!"); return; }
     return _executePrint(visitId, null, null, { win });
   }
 

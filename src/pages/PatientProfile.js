@@ -293,15 +293,15 @@ function renderTimelineCard(v, patientId, index) {
             <svg style="width:24px;height:24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
           </button>
           <button class="btn btn-ghost btn-icon hide-on-mobile" style="padding:12px;" title="Print Prescription"
-                  onclick="window.__printVisit(${v.id})">
+                  onclick="window.__printVisit('${v.id}')">
             <svg style="width:24px;height:24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
           </button>
           <button class="btn btn-ghost btn-icon hide-on-desktop" style="padding:12px;" title="Download PDF"
-                  onclick="window.__downloadVisitPDF(${v.id})">
+                  onclick="window.__downloadVisitPDF('${v.id}')">
             <svg style="width:24px;height:24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
           </button>
           <button class="btn btn-ghost btn-icon" style="padding:12px;" title="Send via WhatsApp"
-                  onclick="window.__sendWhatsApp(${v.id})">
+                  onclick="window.__sendWhatsApp('${v.id}')">
             <svg viewBox="0 0 24 24" fill="#25D366" style="width:24px;height:24px;">
               <path d="M12.031 0C5.398 0 .016 5.383.016 12.016c0 2.12.553 4.186 1.604 6L.016 24l6.146-1.611a11.964 11.964 0 005.869 1.53h.005c6.632 0 12.013-5.383 12.013-12.015C24.049 5.383 18.663 0 12.031 0zm0 22.023h-.004a9.945 9.945 0 01-5.068-1.385l-.364-.216-3.766.987.997-3.668-.237-.377a9.922 9.922 0 01-1.523-5.349c0-5.498 4.475-9.972 9.972-9.972 5.497 0 9.972 4.474 9.972 9.972 0 5.498-4.475 9.973-9.972 9.973zm5.474-7.48c-.3-.15-1.776-.877-2.052-.977-.275-.1-.476-.15-.676.15-.2.3-.776.977-.951 1.177-.175.2-.35.225-.65.075-.3-.15-1.267-.467-2.414-1.49-.893-.796-1.496-1.78-1.671-2.08-.175-.3-.018-.462.132-.612.135-.135.3-.35.45-.525.15-.175.2-.3.3-.5.1-.2.05-.375-.025-.525-.075-.15-.676-1.63-.926-2.23-.243-.585-.49-.505-.676-.514-.175-.01-.375-.01-.575-.01-.2 0-.525.075-.8.375-.275.3-1.05 1.026-1.05 2.5 0 1.475 1.075 2.9 1.225 3.1.15.2 2.114 3.226 5.122 4.526 2.05.885 2.802.952 3.844.796 1.134-.17 3.526-1.442 4.026-2.836.5-1.394.5-2.586.35-2.836-.15-.25-.55-.4-.85-.55z"></path>
             </svg>
