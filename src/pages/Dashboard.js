@@ -66,16 +66,26 @@ export function renderDashboard(container) {
 
   container.innerHTML = `
     <div class="page-header">
-      <div>
+      <!-- Desktop Greeting -->
+      <div class="hide-on-mobile w-full">
         <h1 class="page-title">${greeting}, Dr. ${firstName} 👋</h1>
         <p class="page-subtitle">${formatDate(today)} — Here's your practice overview</p>
       </div>
-      <div class="flex gap-2">
-        <button class="btn btn-secondary btn-sm" onclick="window.__navigate('/patients')">
+
+      <!-- Mobile Search Bar -->
+      <div class="hide-on-desktop w-full mb-1">
+        <div class="flex items-center w-full bg-slate-800 rounded-xl px-4 py-3 border border-slate-700/50 shadow-sm" style="cursor: text;" onclick="window.__navigate('/patients')">
+          <svg width="18" height="18" fill="none" stroke="var(--slate-400)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <span style="color: var(--slate-400); margin-left: 10px; font-size: 0.95rem;">Search by name or phone...</span>
+        </div>
+      </div>
+
+      <div class="flex gap-2 w-full">
+        <button class="btn btn-secondary btn-sm hide-on-mobile" onclick="window.__navigate('/patients')">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
           Search
         </button>
-        <button class="btn btn-primary btn-sm" onclick="window.__navigate('/patients/new')">
+        <button class="btn btn-primary btn-sm flex-1" style="justify-content: center;" onclick="window.__navigate('/patients/new')">
           <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
           New Patient
         </button>
