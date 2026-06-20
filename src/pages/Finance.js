@@ -150,7 +150,7 @@ export function renderFinance(container) {
                       </div>
                     </summary>
                     <div style="padding: 0 16px 16px;">
-                      <div class="table-responsive">
+                      <div class="table-wrap">
                         <table class="table" style="background: rgba(0,0,0,0.15); border-radius: var(--radius-sm); overflow: hidden;">
                           <thead>
                             <tr>

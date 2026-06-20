@@ -422,7 +422,7 @@ select option, .select option {
 .badge-followup{ background: rgba(59,130,246,0.15); color: #93c5fd; border: 1px solid rgba(59,130,246,0.3); }
 
 /* ── Table ───────────────────────────────────────────────────── */
-.table-wrap { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--glass-border); }
+.table-wrap, .table-responsive { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--glass-border); }
 table { width: 100%; border-collapse: collapse; }
 thead th {
   padding: 12px 16px; text-align: left;

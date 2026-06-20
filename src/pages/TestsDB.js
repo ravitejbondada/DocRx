@@ -35,7 +35,7 @@ export function renderTestsDB(container) {
         </div>
 
         <div class="card card-p">
-          <div class="table-responsive">
+          <div class="table-wrap">
             <table class="table">
               <thead>
                 <tr>
