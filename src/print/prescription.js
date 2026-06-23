@@ -263,9 +263,9 @@ export async function _executePrint(visitId, pharmacyId = null, diagCenterId = n
         margin: 0,
         filename: `Prescription_${patient.patient_code}_${formatDate(visit.visit_date).replace(/ /g, '_')}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
+        html2canvas: { scale: 2, windowWidth: 1200 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['css', 'legacy'] }
+        pagebreak: { mode: ['css', 'legacy'], avoid: '.print-page' }
       };
 
       if (isWhatsApp) {
