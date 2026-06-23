@@ -162,12 +162,12 @@
 
 /* ── Light Theme Mobile Overrides ─────────────────────────────── */
 .light-theme .mobile-top-bar {
-  background: rgba(255, 255, 255, 0.8) !important;
+  background: rgba(241, 245, 249, 0.9) !important;
   border-bottom: 1px solid rgba(15, 23, 42, 0.08) !important;
   box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04) !important;
 }
 .light-theme .bottom-nav {
-  background: rgba(255, 255, 255, 0.85) !important;
+  background: rgba(241, 245, 249, 0.92) !important;
   border-top: 1px solid rgba(15, 23, 42, 0.08) !important;
   box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.05) !important;
 }
