@@ -13,6 +13,7 @@ export function renderSettings(container) {
   const params = getParams();
   const activeTab = params.tab || 'clinic';
   const portalUrl = localStorage.getItem('docrx_portal_url') || '';
+  const portalShortUrl = localStorage.getItem('docrx_portal_short_url') || '';
 
   const storageRaw = localStorage.getItem('docrx_db_v1') || '';
   let storageMB  = ((storageRaw.length * 0.75) / 1024 / 1024).toFixed(2);
@@ -282,13 +283,18 @@ export function renderSettings(container) {
           <div class="section-title mb-2" style="font-size:0.95rem">Shareable Portal Link</div>
           <p class="text-xs text-muted mb-3">Copy this link or share it directly with your diagnostic lab partners via WhatsApp.</p>
           <div class="flex gap-2 items-center">
-            <input type="text" class="input" id="share-portal-url" value="${portalUrl}" readonly style="flex:1; background:var(--glass-bg); font-family:monospace; font-size:0.85rem;" />
+            <input type="text" class="input" id="share-portal-url" value="${portalShortUrl || portalUrl}" readonly style="flex:1; background:var(--glass-bg); font-family:monospace; font-size:0.85rem;" />
             <button class="btn btn-secondary btn-sm" id="copy-share-btn">Copy</button>
             <button class="btn btn-primary btn-sm" id="share-wa-btn">
               <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
               Share Link
             </button>
           </div>
+          ${portalShortUrl ? `
+            <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 6px; word-break: break-all;">
+              Original URL: <span style="font-family: monospace;">${portalUrl}</span>
+            </div>
+          ` : ''}
           ` : ''}
         </div>
 
@@ -494,10 +500,53 @@ export function renderSettings(container) {
   });
 
   // Save Portal URL
-  container.querySelector('#save-portal-url-btn')?.addEventListener('click', () => {
+  container.querySelector('#save-portal-url-btn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    
     const val = container.querySelector('#portal-url')?.value?.trim() || '';
     localStorage.setItem('docrx_portal_url', val);
-    toast.success('Lab Portal URL saved.');
+    
+    if (val) {
+      let shortUrl = '';
+      try {
+        const isGdRes = await fetch(`https://is.gd/create.php?format=simple&url=${encodeURIComponent(val)}`);
+        if (isGdRes.ok) {
+          const text = await isGdRes.text();
+          if (text.startsWith('http')) shortUrl = text.trim();
+        }
+      } catch (err) {
+        console.warn('is.gd shortening failed, trying da.gd:', err);
+      }
+      
+      if (!shortUrl) {
+        try {
+          const daGdRes = await fetch(`https://da.gd/s?url=${encodeURIComponent(val)}`);
+          if (daGdRes.ok) {
+            const text = await daGdRes.text();
+            if (text.trim().startsWith('http')) shortUrl = text.trim();
+          }
+        } catch (err) {
+          console.warn('da.gd shortening failed:', err);
+        }
+      }
+      
+      if (shortUrl) {
+        localStorage.setItem('docrx_portal_short_url', shortUrl);
+        toast.success('Lab Portal URL saved and shortened successfully!');
+      } else {
+        localStorage.removeItem('docrx_portal_short_url');
+        toast.success('Lab Portal URL saved.');
+      }
+    } else {
+      localStorage.removeItem('docrx_portal_short_url');
+      toast.success('Lab Portal URL cleared.');
+    }
+    
+    btn.disabled = false;
+    btn.textContent = originalText;
     navigate('/settings?tab=portal');
   });
 
@@ -513,7 +562,7 @@ export function renderSettings(container) {
 
   // Share via WhatsApp
   container.querySelector('#share-wa-btn')?.addEventListener('click', () => {
-    const url = localStorage.getItem('docrx_portal_url') || '';
+    const url = localStorage.getItem('docrx_portal_short_url') || localStorage.getItem('docrx_portal_url') || '';
     if (!url) return;
     const msg = `Dear Partner, please use this link to upload patient lab reports directly into our system: ${url}`;
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
@@ -597,17 +646,53 @@ function getPendingTestsQueue() {
   }
 }
 
-function uploadReport(base64Data, fileName, patientCode, phone) {
+function uploadReport(base64Data, fileName, patientCode, phone, authCode, visitId, selectedTestIdsStr) {
   try {
     patientCode = patientCode.toUpperCase().trim();
     phone = phone.replace(/[\\s\\-\\(\\)]/g, '').trim();
+    authCode = authCode.trim();
     
-    if (!patientCode || !phone) {
-      return { success: false, error: 'Patient Code and Phone Number are required.' };
+    if (!patientCode || !phone || !authCode) {
+      return { success: false, error: 'Patient Code, Phone, and Authorization Code are required.' };
     }
     
+    // Validate Auth Code against the queue
+    var queue = getPendingTestsQueue();
+    var matched = null;
+    if (visitId) {
+      for (var i = 0; i < queue.length; i++) {
+        if (queue[i].visitId === visitId) {
+          matched = queue[i];
+          break;
+        }
+      }
+    } else {
+      for (var i = 0; i < queue.length; i++) {
+        var qPhone = queue[i].phone.replace(/\\D/g, '');
+        var cleanPhone = phone.replace(/\\D/g, '');
+        var qPhoneMatch = qPhone.length >= 10 ? qPhone.slice(-10) : qPhone;
+        var cleanPhoneMatch = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+        
+        if (queue[i].patientCode.toUpperCase() === patientCode && qPhoneMatch === cleanPhoneMatch) {
+          matched = queue[i];
+          break;
+        }
+      }
+    }
+    
+    if (!matched) {
+      return { success: false, error: 'No pending test order found for the provided details.' };
+    }
+    
+    if (matched.authCode !== authCode) {
+      return { success: false, error: 'Invalid Authorization Code. Please check the order printout.' };
+    }
+    
+    var vId = visitId || matched.visitId;
+    var tIds = selectedTestIdsStr || 'all';
+    
     var timestamp = new Date().getTime();
-    var driveFileName = 'incoming_report_' + patientCode + '_' + phone + '_' + timestamp + '.pdf';
+    var driveFileName = 'incoming_report_' + patientCode + '_' + phone + '_' + vId + '_' + tIds + '_' + timestamp + '.pdf';
     var mediaBody = Utilities.base64Decode(base64Data);
     
     var metadata = {
@@ -650,7 +735,8 @@ function uploadReport(base64Data, fileName, patientCode, phone) {
   } catch (error) {
     return { success: false, error: error.toString() };
   }
-}`;
+}
+`;
 
 const HTML_CODE = `<!DOCTYPE html>
 <html>
@@ -768,6 +854,84 @@ const HTML_CODE = `<!DOCTYPE html>
     .input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.2); }
     .input:read-only { background: rgba(15, 23, 42, 0.8); border-color: rgba(255, 255, 255, 0.05); color: var(--text-muted); cursor: not-allowed; }
     
+    /* Checkbox list styles */
+    .tests-checkbox-list {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 6px;
+    }
+    .test-checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .test-checkbox-row:last-child {
+      border-bottom: none;
+    }
+    .test-checkbox-row label {
+      font-size: 13px;
+      cursor: pointer;
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+    .test-checkbox-row input[type="checkbox"] {
+      accent-color: var(--primary);
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+    .test-checkbox-row.disabled {
+      opacity: 0.5;
+      color: var(--text-muted);
+    }
+    .test-checkbox-row.disabled label {
+      cursor: not-allowed;
+    }
+    .status-badge-uploaded {
+      font-size: 10px;
+      background: rgba(16, 185, 129, 0.2);
+      color: #10b981;
+      padding: 1px 6px;
+      border-radius: 10px;
+      margin-left: 8px;
+      font-weight: 500;
+    }
+
+    .patient-auth-banner {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+    .patient-auth-badge {
+      color: #10b981;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+    }
+    .patient-auth-details {
+      color: var(--text);
+      line-height: 1.4;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
     .selected-banner {
       background: rgba(6, 182, 212, 0.1);
       border: 1px solid rgba(6, 182, 212, 0.3);
@@ -863,6 +1027,22 @@ const HTML_CODE = `<!DOCTYPE html>
           <label class="label">Registered Phone Number</label>
           <input type="tel" id="phone" class="input" placeholder="e.g. 9848055331" required autocomplete="off">
         </div>
+        <div class="form-group" id="tests-select-group" style="display:none">
+          <label class="label">Select Tests Included in this Report</label>
+          <div class="tests-checkbox-list" id="tests-checkbox-list"></div>
+          <div id="tests-error" class="error"></div>
+        </div>
+        <div class="form-group">
+          <label class="label">4-Digit Authorization Code</label>
+          <input type="text" id="authCode" class="input" placeholder="Enter password printed on letter pad" required maxlength="4" autocomplete="off">
+        </div>
+        <div id="patient-auth-banner" class="patient-auth-banner" style="display:none">
+          <div class="patient-auth-badge">✓ Authorized Order</div>
+          <div class="patient-auth-details">
+            <strong>Patient Name:</strong> <span id="auth-patient-name"></span><br>
+            <strong>Phone Number:</strong> <span id="auth-patient-phone"></span>
+          </div>
+        </div>
         <div class="form-group">
           <label class="label">PDF Report</label>
           <div id="dropzone" class="dropzone">
@@ -924,6 +1104,9 @@ const HTML_CODE = `<!DOCTYPE html>
     
     const patientCodeInput = document.getElementById('patientCode');
     const phoneInput = document.getElementById('phone');
+    const authCodeInput = document.getElementById('authCode');
+    const testsSelectGroup = document.getElementById('tests-select-group');
+    const testsCheckboxList = document.getElementById('tests-checkbox-list');
     const selectionBanner = document.getElementById('selection-banner');
     const selectedText = document.getElementById('selected-text');
     const queueList = document.getElementById('queue-list');
@@ -931,13 +1114,15 @@ const HTML_CODE = `<!DOCTYPE html>
     
     let selectedFile = null;
     let selectedQueueItem = null;
+    let currentVisitId = null;
     
     function renderQueue(filterText = '') {
       queueList.innerHTML = '';
-      const filtered = queue.filter(item => 
-        item.patientCode.toLowerCase().includes(filterText.toLowerCase()) || 
-        item.tests.toLowerCase().includes(filterText.toLowerCase())
-      );
+      const filtered = queue.filter(item => {
+        const testNames = item.tests.map(t => t.name).join(', ');
+        return item.patientCode.toLowerCase().includes(filterText.toLowerCase()) || 
+               testNames.toLowerCase().includes(filterText.toLowerCase());
+      });
       
       if (!filtered.length) {
         queueList.innerHTML = '<div class="empty-queue">No pending test orders found.</div>';
@@ -946,17 +1131,51 @@ const HTML_CODE = `<!DOCTYPE html>
       
       filtered.forEach(item => {
         const div = document.createElement('div');
-        div.className = 'queue-item' + (selectedQueueItem && selectedQueueItem.patientCode === item.patientCode ? ' active' : '');
+        div.className = 'queue-item' + (selectedQueueItem && selectedQueueItem.visitId === item.visitId ? ' active' : '');
+        const testNames = item.tests.map(t => t.name).join(', ');
+        
+        const pendingCount = item.tests.filter(t => !t.uploaded).length;
+        const totalCount = item.tests.length;
+        const badgeText = pendingCount === totalCount ? 'Pending' : 'Partial (' + pendingCount + '/' + totalCount + ')';
+        
         div.innerHTML = \`
           <div class="queue-item-header">
             <span class="queue-code">\${item.patientCode}</span>
-            <span class="queue-badge">Pending</span>
+            <span class="queue-badge" style="\${pendingCount === totalCount ? '' : 'background: rgba(234, 179, 8, 0.2); color: #eab308;'}">\&nbsp;\${badgeText}\&nbsp;</span>
           </div>
-          <div class="queue-tests">\${item.tests}</div>
+          <div class="queue-tests">\${testNames}</div>
         \`;
         div.addEventListener('click', () => selectQueueItem(item));
         queueList.appendChild(div);
       });
+    }
+    
+    function showTestsForOrder(item) {
+      currentVisitId = item.visitId;
+      testsCheckboxList.innerHTML = '';
+      
+      item.tests.forEach(test => {
+        const row = document.createElement('div');
+        row.className = 'test-checkbox-row' + (test.uploaded ? ' disabled' : '');
+        
+        row.innerHTML = \`
+          <input type="checkbox" id="test-\${test.id}" data-id="\${test.id}" \${test.uploaded ? 'checked disabled' : ''}>
+          <label for="test-\${test.id}">
+            \${test.name}
+            \${test.uploaded ? '<span class="status-badge-uploaded">Uploaded</span>' : ''}
+          </label>
+        \`;
+        
+        const cb = row.querySelector('input');
+        if (!test.uploaded) {
+          cb.addEventListener('change', validateForm);
+        }
+        
+        testsCheckboxList.appendChild(row);
+      });
+      
+      testsSelectGroup.style.display = 'block';
+      validateForm();
     }
     
     function selectQueueItem(item) {
@@ -965,9 +1184,12 @@ const HTML_CODE = `<!DOCTYPE html>
       patientCodeInput.readOnly = true;
       phoneInput.value = item.phone;
       phoneInput.readOnly = true;
-      selectedText.textContent = \`Uploading for \${item.patientCode} (\${item.tests.split(',')[0]}...)\`;
+      
+      const pendingCount = item.tests.filter(t => !t.uploaded).length;
+      selectedText.textContent = 'Uploading for ' + item.patientCode + ' (' + pendingCount + ' pending)';
       selectionBanner.style.display = 'flex';
       renderQueue(queueSearch.value);
+      showTestsForOrder(item);
     }
     
     function clearSelection() {
@@ -978,8 +1200,97 @@ const HTML_CODE = `<!DOCTYPE html>
       phoneInput.readOnly = false;
       selectionBanner.style.display = 'none';
       renderQueue(queueSearch.value);
+      testsSelectGroup.style.display = 'none';
+      currentVisitId = null;
+      validateForm();
     }
     window.clearSelection = clearSelection;
+    
+    function checkManualMatch() {
+      if (selectedQueueItem) return;
+      
+      const code = patientCodeInput.value.trim().toUpperCase();
+      const rawPhone = phoneInput.value.trim().replace(/\\D/g, '');
+      const phoneMatch = rawPhone.length >= 10 ? rawPhone.slice(-10) : rawPhone;
+      
+      if (!code || !phoneMatch) {
+        testsSelectGroup.style.display = 'none';
+        currentVisitId = null;
+        validateForm();
+        return;
+      }
+      
+      const matched = queue.find(item => {
+        const itemPhone = item.phone.replace(/\\D/g, '');
+        const itemPhoneMatch = itemPhone.length >= 10 ? itemPhone.slice(-10) : itemPhone;
+        return item.patientCode.toUpperCase() === code && itemPhoneMatch === phoneMatch;
+      });
+      
+      if (matched) {
+        showTestsForOrder(matched);
+      } else {
+        testsSelectGroup.style.display = 'none';
+        currentVisitId = null;
+        validateForm();
+      }
+    }
+    
+    patientCodeInput.addEventListener('input', checkManualMatch);
+    phoneInput.addEventListener('input', checkManualMatch);
+    
+    authCodeInput.addEventListener('input', (e) => {
+      e.target.value = e.target.value.replace(/\\D/g, '').slice(0, 4);
+      validateForm();
+    });
+    
+    function validateForm() {
+      const file = selectedFile;
+      const code = patientCodeInput.value.trim();
+      const phone = phoneInput.value.trim();
+      const auth = authCodeInput.value.trim();
+      
+      let testsGroupVisible = testsSelectGroup.style.display === 'block';
+      let anyChecked = false;
+      if (testsGroupVisible) {
+        const checkboxes = document.querySelectorAll('#tests-checkbox-list input[type="checkbox"]:not([disabled])');
+        checkboxes.forEach(cb => {
+          if (cb.checked) anyChecked = true;
+        });
+      }
+      
+      let authIsCorrect = false;
+      let matchedOrder = null;
+      
+      if (selectedQueueItem) {
+        matchedOrder = selectedQueueItem;
+      } else if (code && phone) {
+        const rawPhone = phone.replace(/\\D/g, '');
+        const phoneMatch = rawPhone.length >= 10 ? rawPhone.slice(-10) : rawPhone;
+        matchedOrder = queue.find(item => {
+          const itemPhone = item.phone.replace(/\\D/g, '');
+          const itemPhoneMatch = itemPhone.length >= 10 ? itemPhone.slice(-10) : itemPhone;
+          return item.patientCode.toUpperCase() === code.toUpperCase() && itemPhoneMatch === phoneMatch;
+        });
+      }
+      
+      if (matchedOrder && auth === matchedOrder.authCode) {
+        authIsCorrect = true;
+      }
+      
+      const banner = document.getElementById('patient-auth-banner');
+      if (authIsCorrect && matchedOrder) {
+        document.getElementById('auth-patient-name').textContent = matchedOrder.patientName || 'Unknown';
+        document.getElementById('auth-patient-phone').textContent = matchedOrder.phone || 'Unknown';
+        banner.style.display = 'flex';
+      } else {
+        banner.style.display = 'none';
+      }
+      
+      const hasPendingOrder = testsGroupVisible;
+      const isValid = file && code && phone && authIsCorrect && hasPendingOrder && anyChecked;
+      submitBtn.disabled = !isValid;
+    }
+    
     queueSearch.addEventListener('input', (e) => renderQueue(e.target.value));
     renderQueue();
     
@@ -1002,21 +1313,21 @@ const HTML_CODE = `<!DOCTYPE html>
         fileError.textContent = 'Only PDF documents are allowed.';
         selectedFile = null;
         filePreview.style.display = 'none';
-        submitBtn.disabled = true;
+        validateForm();
         return;
       }
       if (file.size > 15 * 1024 * 1024) {
         fileError.textContent = 'Maximum file size is 15MB.';
         selectedFile = null;
         filePreview.style.display = 'none';
-        submitBtn.disabled = true;
+        validateForm();
         return;
       }
       selectedFile = file;
       previewName.textContent = file.name;
       previewSize.textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
       filePreview.style.display = 'block';
-      submitBtn.disabled = false;
+      validateForm();
     }
     
     form.addEventListener('submit', (e) => {
@@ -1024,6 +1335,15 @@ const HTML_CODE = `<!DOCTYPE html>
       if (!selectedFile) return;
       const patientCode = patientCodeInput.value.trim();
       const phone = phoneInput.value.trim();
+      const authCode = authCodeInput.value.trim();
+      
+      const selectedTestIds = [];
+      const checkboxes = document.querySelectorAll('#tests-checkbox-list input[type="checkbox"]:not([disabled])');
+      checkboxes.forEach(cb => {
+        if (cb.checked) selectedTestIds.push(cb.dataset.id);
+      });
+      const selectedTestIdsStr = selectedTestIds.join('+');
+      
       errorMessage.textContent = '';
       queuePanel.style.display = 'none';
       formContainer.style.display = 'none';
@@ -1045,7 +1365,7 @@ const HTML_CODE = `<!DOCTYPE html>
           .withFailureHandler((err) => {
             showError(err.toString());
           })
-          .uploadReport(base64Data, selectedFile.name, patientCode, phone);
+          .uploadReport(base64Data, selectedFile.name, patientCode, phone, authCode, currentVisitId, selectedTestIdsStr);
       };
       reader.readAsDataURL(selectedFile);
     });

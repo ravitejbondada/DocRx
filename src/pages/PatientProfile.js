@@ -278,7 +278,10 @@ function renderTimelineCard(v, patientId, index) {
           <div class="flex gap-3 mt-1" style="flex-wrap:wrap">
             <span class="text-xs text-tertiary">${v.chief_complaint}</span>
             ${v.rx_count > 0 ? `<span class="text-xs text-accent">💊 ${v.rx_count} medicines</span>` : ''}
-            ${v.test_count > 0 ? `<span class="text-xs" style="color:var(--warning)">🧪 ${v.test_count} tests</span>` : ''}
+            ${v.test_count > 0 ? `
+              <span class="text-xs" style="color:var(--warning)">🧪 ${v.test_count} tests</span>
+              ${v.auth_code ? `<span class="badge" style="background:rgba(6,182,212,0.15); color:#22d3ee; font-size:10px; font-weight:600; padding:1px 5px; border:1px solid rgba(6,182,212,0.25);" title="Lab Upload Password">🔑 Auth: ${v.auth_code}</span>` : ''}
+            ` : ''}
             ${vitals.slice(0,3).map(vit => `<span class="text-xs text-tertiary">${vit}</span>`).join('')}
           </div>
         </div>

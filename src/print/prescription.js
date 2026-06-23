@@ -25,6 +25,8 @@ export async function _executePrint(visitId, pharmacyId = null, diagCenterId = n
   let diagCenter = null;
   if (diagCenterId) diagCenter = queryOne('SELECT * FROM diagnostic_centers WHERE id=? AND deleted=0', [diagCenterId]);
 
+  const portalShortUrl = localStorage.getItem('docrx_portal_short_url') || localStorage.getItem('docrx_portal_url') || '';
+
   // Fetch async translations
   for (let r of rxItems) {
     r._freqTel = await translateTeluguAsync(r.frequency);
@@ -239,6 +241,20 @@ export async function _executePrint(visitId, pharmacyId = null, diagCenterId = n
 
     <div class="tests-section">
       <div class="tests-title">Investigations Ordered</div>
+      ${visit.auth_code ? `
+        <div style="margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 12px; font-family: 'Inter', sans-serif;">
+          <div style="padding: 8px 12px; border: 1px dashed #0891b2; border-radius: 6px; background-color: #ecfeff; display: inline-flex; align-items: center; gap: 8px;">
+            <span style="font-size: 8.5pt; color: #0891b2; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Lab Portal Password:</span>
+            <span style="font-size: 12pt; color: #0f766e; font-weight: 700; letter-spacing: 2px;">${visit.auth_code}</span>
+          </div>
+          ${portalShortUrl ? `
+            <div style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; background-color: #f8fafc; display: inline-flex; align-items: center; gap: 6px;">
+              <span style="font-size: 8.5pt; color: #64748b; font-weight: 500;">Upload Link:</span>
+              <span style="font-size: 9.5pt; color: #0f172a; font-weight: 600; text-decoration: underline;">${portalShortUrl.replace(/^https?:\/\//, '')}</span>
+            </div>
+          ` : ''}
+        </div>
+      ` : ''}
       ${tests.map(t => `
         <div class="test-row">
           <span class="test-bullet">◉</span>

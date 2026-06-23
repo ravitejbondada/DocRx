@@ -2,7 +2,7 @@
 // DocRx — Database Schema & DDL
 // ============================================================
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 export const CREATE_TABLES_SQL = `
 PRAGMA journal_mode=WAL;
@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS visits (
   follow_up_date  DATE,
   fee             INTEGER  DEFAULT 0,
   attachment_idb_key TEXT,
+  auth_code       TEXT,
   created_at      DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
   updated_at      DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
   deleted         INTEGER  NOT NULL DEFAULT 0,
@@ -107,6 +108,7 @@ CREATE TABLE IF NOT EXISTS diagnostic_tests (
   urgency       TEXT    DEFAULT 'Routine' CHECK (urgency IN ('Routine','Urgent')),
   result_notes  TEXT,
   result_date   DATE,
+  uploaded      INTEGER DEFAULT 0,
   updated_at    DATETIME NOT NULL DEFAULT (datetime('now','localtime')),
   deleted       INTEGER  NOT NULL DEFAULT 0,
   deleted_at    DATETIME
@@ -193,5 +195,9 @@ export const MIGRATIONS = {
     ALTER TABLE settings ADD COLUMN google_sync_enabled INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE settings ADD COLUMN last_sync_timestamp TEXT;
     UPDATE settings SET google_client_id = '219866394954-pg9187uvcq3gu0c4l51728m1u1hojt0c.apps.googleusercontent.com' WHERE google_client_id = '' OR google_client_id IS NULL;
+  `,
+  5: `
+    ALTER TABLE visits ADD COLUMN auth_code TEXT;
+    ALTER TABLE diagnostic_tests ADD COLUMN uploaded INTEGER DEFAULT 0;
   `
 };

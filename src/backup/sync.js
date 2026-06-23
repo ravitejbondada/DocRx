@@ -257,13 +257,24 @@ async function ingestIncomingReports(token, db) {
     let processedCount = 0;
     
     for (const file of files) {
-      // Filename format: incoming_report_[PatientCode]_[Phone]_[Timestamp].pdf
+      // Filename format: 
+      // Old: incoming_report_[PatientCode]_[Phone]_[Timestamp].pdf
+      // New: incoming_report_[PatientCode]_[Phone]_[VisitId]_[TestIds]_[Timestamp].pdf
       const nameWithoutExt = file.name.substring(0, file.name.length - 4); // Remove .pdf
       const parts = nameWithoutExt.split('_');
       if (parts.length < 5) continue;
       
       const patientCode = parts[2];
       const phone = parts[3];
+      
+      let visitId = null;
+      let testIdsStr = '';
+      if (parts.length === 6) {
+        visitId = parts[4];
+      } else if (parts.length >= 7) {
+        visitId = parts[4];
+        testIdsStr = parts[5];
+      }
       
       // Look up patient in local DB
       const patientResult = db.exec(`SELECT id, phone, full_name FROM patients WHERE patient_code = ? AND deleted = 0`, [patientCode]);
@@ -287,13 +298,19 @@ async function ingestIncomingReports(token, db) {
       // Download file as arrayBuffer
       const cloudBuffer = await downloadBackupFile(token, file.id);
       
-      // Find latest visit
-      const visitResult = db.exec(`SELECT id, attachment_idb_key FROM visits WHERE patient_id = ? AND deleted = 0 ORDER BY visit_date DESC, created_at DESC LIMIT 1`, [patientId]);
+      // Find matching visit
+      let visitResult = null;
+      if (visitId && visitId !== 'manual') {
+        visitResult = db.exec(`SELECT id, attachment_idb_key FROM visits WHERE id = ? AND deleted = 0`, [visitId]);
+      }
+      if (!visitResult || !visitResult.length || !visitResult[0].values.length) {
+        visitResult = db.exec(`SELECT id, attachment_idb_key FROM visits WHERE patient_id = ? AND deleted = 0 ORDER BY visit_date DESC, created_at DESC LIMIT 1`, [patientId]);
+      }
       
-      let visitId;
+      let matchedVisitId = null;
       let existingKey = null;
       if (visitResult.length && visitResult[0].values.length) {
-        [visitId, existingKey] = visitResult[0].values[0];
+        [matchedVisitId, existingKey] = visitResult[0].values[0];
       }
       
       let finalFile;
@@ -327,14 +344,27 @@ async function ingestIncomingReports(token, db) {
       const fileKey = 'visit_' + Date.now() + '_' + Math.random().toString(36).substring(7) + '_Combined_Report.pdf';
       await set(fileKey, finalFile);
       
-      if (visitId && !shouldCreateNewVisit) {
-        db.run(`UPDATE visits SET attachment_idb_key = ?, updated_at = datetime('now','localtime') WHERE id = ?`, [fileKey, visitId]);
+      if (matchedVisitId && !shouldCreateNewVisit) {
+        db.run(`UPDATE visits SET attachment_idb_key = ?, updated_at = datetime('now','localtime') WHERE id = ?`, [fileKey, matchedVisitId]);
+        visitId = matchedVisitId;
       } else {
         visitId = crypto.randomUUID();
         db.run(`
           INSERT INTO visits (id, patient_id, visit_date, chief_complaint, diagnosis, clinical_notes, visit_type, fee, attachment_idb_key, created_at, updated_at, deleted)
           VALUES (?, ?, date('now','localtime'), ?, ?, ?, 'New', 0, ?, datetime('now','localtime'), datetime('now','localtime'), 0)
         `, [visitId, patientId, 'Diagnostic Lab Report', 'Diagnostic Lab Report', 'Uploaded from Diagnostic Center Lab Portal', fileKey]);
+      }
+      
+      // Update tests uploaded status
+      if (visitId) {
+        if (testIdsStr && testIdsStr !== 'all') {
+          const testIds = testIdsStr.split('+').filter(Boolean);
+          for (const tid of testIds) {
+            db.run(`UPDATE diagnostic_tests SET uploaded = 1, result_date = date('now','localtime'), updated_at = datetime('now','localtime') WHERE id = ?`, [tid]);
+          }
+        } else {
+          db.run(`UPDATE diagnostic_tests SET uploaded = 1, result_date = date('now','localtime'), updated_at = datetime('now','localtime') WHERE visit_id = ? AND deleted = 0`, [visitId]);
+        }
       }
       
       // Delete the file from Google Drive
@@ -433,25 +463,52 @@ async function syncAttachments(token, db, status) {
 
 async function uploadPendingTestsQueue(token, db) {
   try {
-    // Select all patients who have diagnostic tests ordered, but visit doesn't have an attachment yet
+    // Select all patients who have diagnostic tests ordered, where at least one test is not uploaded yet
     const res = db.exec(`
-      SELECT p.patient_code, p.phone, group_concat(t.test_name, ', ') as tests
+      SELECT p.patient_code, p.phone, v.id as visit_id, v.auth_code,
+             group_concat(t.id || ':' || t.test_name || ':' || t.uploaded, ';') as test_details,
+             p.full_name
       FROM diagnostic_tests t
       JOIN visits v ON t.visit_id = v.id
       JOIN patients p ON v.patient_id = p.id
-      WHERE v.deleted = 0 AND t.deleted = 0 AND v.attachment_idb_key IS NULL
+      WHERE v.deleted = 0 AND t.deleted = 0
       GROUP BY v.id
+      HAVING SUM(CASE WHEN t.uploaded = 0 THEN 1 ELSE 0 END) > 0
     `);
     
+    let dbUpdated = false;
     const queue = [];
     if (res.length && res[0].values.length) {
-      res[0].values.forEach(row => {
+      for (const row of res[0].values) {
+        const visitId = row[2];
+        let authCode = row[3];
+        
+        // Generate auth code if it doesn't exist yet (for older visits)
+        if (!authCode) {
+          authCode = Math.floor(1000 + Math.random() * 9000).toString();
+          db.run('UPDATE visits SET auth_code = ? WHERE id = ?', [authCode, visitId]);
+          dbUpdated = true;
+        }
+        
+        const testDetailsStr = row[4] || '';
+        const tests = testDetailsStr.split(';').map(item => {
+          const parts = item.split(':');
+          return {
+            id: parts[0],
+            name: parts[1],
+            uploaded: parseInt(parts[2], 10) || 0
+          };
+        });
+        
         queue.push({
           patientCode: row[0],
           phone: row[1],
-          tests: row[2]
+          visitId: visitId,
+          authCode: authCode,
+          tests: tests,
+          patientName: row[5]
         });
-      });
+      }
     }
     
     const { uploadFileToAppData, findFileByName, updateFileInAppData } = await import('./drive.js');
@@ -465,8 +522,12 @@ async function uploadPendingTestsQueue(token, db) {
       await uploadFileToAppData(token, jsonBlob, filename);
     }
     console.log("DocRx Sync: Uploaded pending tests queue successfully.");
+    if (dbUpdated) {
+      return true;
+    }
   } catch (err) {
     console.warn("DocRx Sync: Failed to upload pending tests queue:", err);
   }
+  return false;
 }
 

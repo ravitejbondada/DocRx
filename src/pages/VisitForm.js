@@ -700,14 +700,25 @@ export function renderVisitForm(container, params) {
 
     try {
       const vId = isEdit ? visitId : crypto.randomUUID();
+      let authCode = null;
+      if (isEdit) {
+        const existingRow = queryOne('SELECT auth_code FROM visits WHERE id=?', [vId]);
+        if (existingRow && existingRow.auth_code) {
+          authCode = existingRow.auth_code;
+        }
+      }
+      if (!authCode) {
+        authCode = Math.floor(1000 + Math.random() * 9000).toString();
+      }
+
       if (isEdit) {
         run(`UPDATE visits SET visit_date=?,chief_complaint=?,diagnosis=?,clinical_notes=?,
              bp=?,temperature=?,weight=?,height=?,bmi=?,spo2=?,pulse=?,visit_type=?,
-             follow_up_date=?,fee=?,updated_at=datetime('now','localtime') WHERE id=?`,
+             follow_up_date=?,fee=?,auth_code=?,updated_at=datetime('now','localtime') WHERE id=?`,
           [getValue('#visit_date'), chief, cleanedDx, getValue('#clinical_notes')||null,
            getValue('#bp')||null, getValue('#temperature')||null, w, h, bmi,
            getValue('#spo2')||null, getValue('#pulse')||null, getValue('#visit_type'),
-           getValue('#follow_up_date')||null, getValue('#fee') || 0, vId]);
+           getValue('#follow_up_date')||null, getValue('#fee') || 0, authCode, vId]);
 
         // Soft delete prescriptions & tests
         const now = new Date().toISOString();
@@ -716,13 +727,13 @@ export function renderVisitForm(container, params) {
       } else {
         run(
           `INSERT INTO visits (id,patient_id,visit_date,chief_complaint,diagnosis,clinical_notes,
-           bp,temperature,weight,height,bmi,spo2,pulse,visit_type,follow_up_date,fee,updated_at)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now','localtime'))`,
+           bp,temperature,weight,height,bmi,spo2,pulse,visit_type,follow_up_date,fee,auth_code,updated_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now','localtime'))`,
           [vId, patientId, getValue('#visit_date'), chief, cleanedDx,
            getValue('#clinical_notes')||null, getValue('#bp')||null,
            getValue('#temperature')||null, w, h, bmi,
            getValue('#spo2')||null, getValue('#pulse')||null, getValue('#visit_type'),
-           getValue('#follow_up_date')||null, getValue('#fee') || 0]);
+           getValue('#follow_up_date')||null, getValue('#fee') || 0, authCode]);
       }
 
       // Save prescriptions
@@ -741,9 +752,18 @@ export function renderVisitForm(container, params) {
       // Save tests
       testRowData.forEach(t => {
         if (!t.test_name) return;
-        run(`INSERT INTO diagnostic_tests (id, visit_id, test_name, instructions, urgency, updated_at)
-             VALUES (?,?,?,?,?,datetime('now','localtime'))`,
-          [crypto.randomUUID(), vId, t.test_name, t.instructions||null, t.urgency||'Routine']);
+        const testId = t.id || crypto.randomUUID();
+        const uploadedVal = t.uploaded !== undefined ? t.uploaded : 0;
+        
+        const exists = t.id ? queryOne("SELECT 1 FROM diagnostic_tests WHERE id=?", [t.id]) : null;
+        if (exists) {
+          run(`UPDATE diagnostic_tests SET test_name=?, instructions=?, urgency=?, uploaded=?, deleted=0, deleted_at=NULL, updated_at=datetime('now','localtime') WHERE id=?`,
+            [t.test_name, t.instructions||null, t.urgency||'Routine', uploadedVal, testId]);
+        } else {
+          run(`INSERT INTO diagnostic_tests (id, visit_id, test_name, instructions, urgency, uploaded, deleted, updated_at)
+               VALUES (?,?,?,?,?,?,0,datetime('now','localtime'))`,
+            [testId, vId, t.test_name, t.instructions||null, t.urgency||'Routine', uploadedVal]);
+        }
         run(`UPDATE test_catalog SET use_count=use_count+1 WHERE name=?`, [t.test_name]);
         run(`INSERT OR IGNORE INTO test_catalog (name) VALUES (?)`, [t.test_name]);
       });
