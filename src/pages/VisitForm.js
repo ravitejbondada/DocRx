@@ -104,7 +104,14 @@ export function renderVisitForm(container, params) {
               </div>
               <div class="form-group mt-3">
                 <label class="form-label">Chief Complaint <span class="req">*</span></label>
-                <input class="input" id="chief_complaint" type="text" placeholder="Primary presenting issue" value="${e(existing?.chief_complaint)}" ${isLocked ? 'disabled' : ''} />
+                <div class="mic-input-wrap">
+                  <input class="input" id="chief_complaint" type="text" placeholder="Primary presenting issue" value="${e(existing?.chief_complaint)}" ${isLocked ? 'disabled' : ''} />
+                  ${!isLocked ? `
+                    <button type="button" class="btn-mic" data-target="#chief_complaint" title="Dictate Chief Complaint">
+                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                    </button>
+                  ` : ''}
+                </div>
               </div>
               <div class="form-group mt-3">
                 <label class="form-label">Diagnosis</label>
@@ -114,7 +121,14 @@ export function renderVisitForm(container, params) {
               </div>
               <div class="form-group mt-3">
                 <label class="form-label">Clinical Notes</label>
-                <textarea class="textarea" id="clinical_notes" placeholder="Observations, examination findings, history..." rows="3" ${isLocked ? 'disabled' : ''}>${e(existing?.clinical_notes)}</textarea>
+                <div class="mic-input-wrap">
+                  <textarea class="textarea" id="clinical_notes" placeholder="Observations, examination findings, history..." rows="3" ${isLocked ? 'disabled' : ''}>${e(existing?.clinical_notes)}</textarea>
+                  ${!isLocked ? `
+                    <button type="button" class="btn-mic" data-target="#clinical_notes" title="Dictate Clinical Notes">
+                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                    </button>
+                  ` : ''}
+                </div>
               </div>
             </div>
 
@@ -633,6 +647,7 @@ export function renderVisitForm(container, params) {
   }
 
   refreshTestTable();
+  initVoiceToText(container);
 
   container.querySelector('#add-test-btn')?.addEventListener('click', () => {
     testRowData.push({ test_name: '', instructions: '', urgency: 'Routine' });
@@ -813,4 +828,67 @@ function formatDate(d) {
   return new Date((d+'T00:00:00')).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
 }
 function e(val) { return val != null ? String(val).replace(/"/g, '&quot;') : ''; }
+
+function initVoiceToText(container) {
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    container.querySelectorAll('.btn-mic').forEach(btn => btn.style.display = 'none');
+    return;
+  }
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  container.querySelectorAll('.btn-mic').forEach(btn => {
+    const targetId = btn.dataset.target;
+    const targetEl = container.querySelector(targetId);
+    if (!targetEl) return;
+
+    let recognition = null;
+    let isListening = false;
+
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (isListening) {
+        recognition.stop();
+        return;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-IN'; // Default to English (India)
+
+      recognition.onstart = () => {
+        isListening = true;
+        btn.classList.add('listening');
+        toast.info('Listening... Speak now.');
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        if (event.error !== 'no-speech') {
+          toast.error('Voice input error: ' + event.error);
+        }
+        recognition.stop();
+      };
+
+      recognition.onend = () => {
+        isListening = false;
+        btn.classList.remove('listening');
+      };
+
+      recognition.onresult = (event) => {
+        const text = event.results[0][0].transcript;
+        if (text) {
+          const currentVal = targetEl.value.trim();
+          targetEl.value = currentVal ? currentVal + ' ' + text : text;
+          targetEl.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      };
+
+      recognition.start();
+    });
+  });
+}
 

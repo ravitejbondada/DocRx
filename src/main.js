@@ -20,6 +20,7 @@ import { renderFinance }        from './pages/Finance.js';
 import { renderMedicinesDB }    from './pages/MedicinesDB.js';
 import { renderTestsDB }        from './pages/TestsDB.js';
 import { renderPartnersDB }     from './pages/PartnersDB.js';
+import { renderAnalytics }      from './pages/Analytics.js';
 
 // Print & Share engine
 import './print/prescription.js';
@@ -81,6 +82,7 @@ async function bootstrap() {
     route('/patients/:patientId/visit/new',       withLayoutParams((c, p) => renderVisitForm(c, p)));
     route('/patients/:patientId/visit/:visitId/edit', withLayoutParams((c, p) => renderVisitForm(c, p)));
     route('/finance',                             withLayout(renderFinance));
+    route('/analytics',                           withLayout(renderAnalytics));
     route('/settings',                            withLayout(renderSettings));
     route('/medicines',                           withLayout(renderMedicinesDB));
     route('/tests',                               withLayout(renderTestsDB));
