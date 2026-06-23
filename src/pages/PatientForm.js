@@ -20,8 +20,19 @@ export function renderPatientForm(container, params = {}) {
   if (!isEdit) {
     const last = queryOne("SELECT patient_code FROM patients ORDER BY patient_code DESC LIMIT 1");
     if (last?.patient_code) {
-      const n = parseInt(last.patient_code.replace('PAT-', ''), 10) + 1;
-      nextCode = 'PAT-' + String(n).padStart(4, '0');
+      let prefix = 'PAT-';
+      let n = 1;
+      const match = last.patient_code.match(/^([A-Za-z\-]+)(\d+)$/);
+      if (match) {
+        prefix = match[1];
+        n = parseInt(match[2], 10) + 1;
+      } else {
+        const digitsMatch = last.patient_code.match(/\d+/);
+        if (digitsMatch) {
+          n = parseInt(digitsMatch[0], 10) + 1;
+        }
+      }
+      nextCode = prefix + String(isNaN(n) ? 1 : n).padStart(4, '0');
     }
   }
 
