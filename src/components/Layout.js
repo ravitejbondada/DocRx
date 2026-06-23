@@ -38,6 +38,12 @@ export function renderLayout(container) {
 
   container.innerHTML = `
     <div class="app-layout">
+      <!-- Desktop Floating Theme Toggle -->
+      <div class="hide-on-mobile" style="position:fixed; top:16px; right:24px; z-index:999;">
+        <button class="theme-toggle-btn" onclick="window.__toggleTheme(event)" style="background:var(--glass-bg); border:1px solid var(--glass-border); border-radius:50%; width:34px; height:34px; display:flex; align-items:center; justify-content:center; color:var(--text-primary); cursor:pointer; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); box-shadow:var(--shadow-sm); transition:all var(--t-fast);">
+        </button>
+      </div>
+
       <!-- Sidebar -->
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -126,7 +132,9 @@ export function renderLayout(container) {
             <div class="text-xs text-tertiary" style="line-height:1">${settings.clinic_name || 'DocRx'}</div>
           </div>
         </div>
-        <div id="mobile-sync-indicator-container">
+        <div id="mobile-sync-indicator-container" class="flex items-center gap-3">
+          <button class="theme-toggle-btn" onclick="window.__toggleTheme(event)" title="Toggle Theme" style="background:none; border:none; color:var(--text-primary); cursor:pointer; padding:4px; display:flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; transition:all var(--t-fast);">
+          </button>
           <div class="sync-indicator offline" title="Sync Status" onclick="window.__triggerManualSync(event)"></div>
         </div>
       </header>
@@ -171,6 +179,28 @@ export function renderLayout(container) {
       navigate('/login', true);
     }
   };
+
+  // Theme Toggle Logic
+  window.__updateThemeUI = () => {
+    const isLight = document.documentElement.classList.contains('light-theme');
+    const moonSvg = `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>`;
+    const sunSvg = `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.364 17.636l-.707.707M6.364 6.364l.707.707M17.636 17.636l.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>`;
+    
+    document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+      btn.innerHTML = isLight ? moonSvg : sunSvg;
+      btn.title = isLight ? "Switch to Dark Mode" : "Switch to Light Mode";
+    });
+  };
+
+  window.__toggleTheme = (event) => {
+    if (event) event.stopPropagation();
+    const isLight = document.documentElement.classList.toggle('light-theme');
+    localStorage.setItem('docrx_theme', isLight ? 'light' : 'dark');
+    window.__updateThemeUI();
+  };
+
+  // Initialize theme UI
+  window.__updateThemeUI();
 
   // Sync Indicator Rendering & Control
   const STATUS_ICONS = {
