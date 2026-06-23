@@ -313,6 +313,85 @@ a:hover { color: var(--teal-300); }
 .user-name { font-size: 0.8rem; font-weight: 600; color: var(--text-primary); }
 .user-role { font-size: 0.7rem; color: var(--text-tertiary); }
 
+/* ── Theme Switcher & Toggle ─────────────────────────────────── */
+.sidebar-theme-picker {
+  padding: 4px 12px 12px 12px;
+}
+.theme-segmented-control {
+  display: flex;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  width: 100%;
+  position: relative;
+}
+.theme-segmented-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: calc(var(--radius-md) - 2px);
+  transition: all var(--t-fast) var(--ease-out);
+  z-index: 1;
+}
+.theme-segmented-btn svg {
+  width: 14px;
+  height: 14px;
+  transition: transform var(--t-fast) var(--ease-out);
+}
+.theme-segmented-btn:hover {
+  color: var(--text-primary);
+}
+.theme-segmented-btn:hover svg {
+  transform: scale(1.1);
+}
+.theme-segmented-btn.active {
+  background: var(--surface-2);
+  color: var(--teal-400);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--glass-border);
+}
+.light-theme .theme-segmented-btn.active {
+  background: var(--surface-1);
+  color: var(--teal-600);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.theme-toggle-btn {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease-out);
+}
+.theme-toggle-btn:hover {
+  background: var(--glass-hover);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+.theme-toggle-btn:active {
+  transform: translateY(0);
+}
+.theme-toggle-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* ── Mobile Top Bar (hidden on desktop) ──────────────────────── */
 .mobile-top-bar { display: none; }
 
@@ -1161,11 +1240,11 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
   }
   #mobile-sync-indicator-container {
     position: relative;
-    width: 32px;
-    height: 32px;
+    width: auto;
+    height: auto;
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 12px;
   }
   #mobile-sync-indicator-container .sync-indicator {
     position: relative;
@@ -1174,8 +1253,8 @@ tbody td { padding: 13px 16px; font-size: 0.875rem; color: var(--text-primary); 
     background: transparent;
     box-shadow: none;
     padding: 0;
-    width: 100%;
-    height: 100%;
+    width: 20px;
+    height: 20px;
     backdrop-filter: none;
   }
 
