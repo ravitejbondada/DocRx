@@ -264,10 +264,12 @@ async function ingestIncomingReports(token, db) {
       
       const [patientId, dbPhone, fullName] = patientResult[0].values[0];
       
-      // Verify phone number matching (digit-only comparison)
+      // Verify phone number matching (digit-only comparison, matching last 10 digits for country-code resilience)
       const cleanDbPhone = String(dbPhone).replace(/\D/g, '');
       const cleanFilePhone = String(phone).replace(/\D/g, '');
-      if (cleanDbPhone !== cleanFilePhone) {
+      const matchDb = cleanDbPhone.length >= 10 ? cleanDbPhone.slice(-10) : cleanDbPhone;
+      const matchFile = cleanFilePhone.length >= 10 ? cleanFilePhone.slice(-10) : cleanFilePhone;
+      if (matchDb !== matchFile) {
         console.warn(`DocRx Ingest: Phone mismatch for ${patientCode}. DB: ${cleanDbPhone}, File: ${cleanFilePhone}`);
         continue;
       }
@@ -285,6 +287,7 @@ async function ingestIncomingReports(token, db) {
       }
       
       let finalFile;
+      let shouldCreateNewVisit = false;
       if (existingKey) {
         const existingFile = await get(existingKey);
         if (existingFile && existingFile.type === 'application/pdf') {
@@ -298,11 +301,14 @@ async function ingestIncomingReports(token, db) {
             const pdfBytes = await pdfDoc.save();
             finalFile = new File([pdfBytes], 'Combined_Report.pdf', { type: 'application/pdf' });
           } catch (e) {
-            console.error("DocRx Ingest: PDF merge error, saving new file instead", e);
+            console.error("DocRx Ingest: PDF merge error, creating new visit instead", e);
             finalFile = new File([cloudBuffer], 'Combined_Report.pdf', { type: 'application/pdf' });
+            shouldCreateNewVisit = true;
           }
         } else {
+          // Keep existing non-PDF attachment by forcing a new visit shell
           finalFile = new File([cloudBuffer], 'Combined_Report.pdf', { type: 'application/pdf' });
+          shouldCreateNewVisit = true;
         }
       } else {
         finalFile = new File([cloudBuffer], 'Combined_Report.pdf', { type: 'application/pdf' });
@@ -311,7 +317,7 @@ async function ingestIncomingReports(token, db) {
       const fileKey = 'visit_' + Date.now() + '_' + Math.random().toString(36).substring(7) + '_Combined_Report.pdf';
       await set(fileKey, finalFile);
       
-      if (visitId) {
+      if (visitId && !shouldCreateNewVisit) {
         db.run(`UPDATE visits SET attachment_idb_key = ?, updated_at = datetime('now','localtime') WHERE id = ?`, [fileKey, visitId]);
       } else {
         visitId = crypto.randomUUID();
