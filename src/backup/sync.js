@@ -57,10 +57,11 @@ export async function syncWithGoogleDrive(onStatusCallback) {
 
   status({ type: 'syncing', message: 'Connecting to Google Drive...' });
   const localDb = getDB();
+  let reportsIngested = 0;
 
   try {
     // Ingest any reports first, which might update the database
-    await ingestIncomingReports(token, localDb);
+    reportsIngested = await ingestIncomingReports(token, localDb);
 
     const cloudFile = await findBackupFile(token);
 
@@ -185,7 +186,14 @@ export async function syncWithGoogleDrive(onStatusCallback) {
     localDb.run("UPDATE settings SET last_sync_timestamp=? WHERE id=1", [now]);
     persistDB();
 
-    status({ type: 'success', message: 'Consolidated synchronization complete!', lastSync: now });
+    if (reportsIngested > 0 && !isLocalModified) {
+      import('../components/Toast.js').then(({ toast }) => {
+        toast.success('Sync complete. Ingested lab reports loaded.');
+        setTimeout(() => window.location.reload(), 1500);
+      });
+    } else if (!isLocalModified) {
+      status({ type: 'success', message: 'Consolidated synchronization complete!', lastSync: now });
+    }
     return true;
   } catch (err) {
     console.error('DocRx Sync Error:', err);
