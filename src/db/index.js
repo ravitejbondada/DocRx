@@ -323,7 +323,7 @@ function migrateToV3(db) {
   console.log("DocRx: Database migration to version 3 completed successfully!");
 }
 
-function runMigrations(db) {
+export function runMigrations(db) {
   // Add first_name and last_name if missing (schema update)
   try {
     db.exec("ALTER TABLE settings ADD COLUMN doctor_first_name TEXT DEFAULT ''");

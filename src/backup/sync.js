@@ -90,6 +90,10 @@ export async function syncWithGoogleDrive(onStatusCallback) {
     const SQL = await loadSQL();
     const cloudDb = new SQL.Database(new Uint8Array(cloudBuffer));
 
+    // Migrate the cloud database to the latest schema before merging
+    const { runMigrations } = await import('../db/index.js');
+    runMigrations(cloudDb);
+
     // Disable constraints during merging
     localDb.run("PRAGMA foreign_keys = OFF");
     cloudDb.run("PRAGMA foreign_keys = OFF");
