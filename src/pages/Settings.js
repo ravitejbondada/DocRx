@@ -554,7 +554,7 @@ const MANIFEST_CODE = `{
     "access": "ANYONE"
   },
   "oauthScopes": [
-    "https://www.googleapis.com/auth/drive.appdata",
+    "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/script.external_request"
   ]
 }`;
