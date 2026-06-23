@@ -219,3 +219,27 @@ export async function listIncomingReports(token) {
 
 export const deleteReportFile = deleteFileFromAppData;
 
+export async function findFileByName(token, filename) {
+  const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='${filename}' and trashed=false&fields=files(id)`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (!res.ok) throw new Error(`Failed to find file ${filename}`);
+  const data = await res.json();
+  return data.files?.[0] || null;
+}
+
+export async function updateFileInAppData(token, blob, fileId) {
+  const url = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': blob.type
+    },
+    body: blob
+  });
+  if (!res.ok) throw new Error('Failed to update file in Google Drive AppData');
+  return await res.json();
+}
+

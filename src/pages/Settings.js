@@ -560,11 +560,41 @@ const MANIFEST_CODE = `{
 }`;
 
 const GS_CODE = `function doGet(e) {
-  return HtmlService.createTemplateFromFile('Upload')
-      .evaluate()
+  var template = HtmlService.createTemplateFromFile('Upload');
+  template.queueData = JSON.stringify(getPendingTestsQueue());
+  return template.evaluate()
       .setTitle('DocRx Lab Report Portal')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
       .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+function getPendingTestsQueue() {
+  try {
+    var token = ScriptApp.getOAuthToken();
+    var findUrl = 'https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name=%27pending_tests_queue.json%27%20and%20trashed=false&fields=files(id)';
+    var findResponse = UrlFetchApp.fetch(findUrl, {
+      method: 'get',
+      headers: { Authorization: 'Bearer ' + token },
+      muteHttpExceptions: true
+    });
+    
+    if (findResponse.getResponseCode() !== 200) return [];
+    var findInfo = JSON.parse(findResponse.getContentText());
+    var files = findInfo.files;
+    if (!files || !files.length) return [];
+    
+    var downloadUrl = 'https://www.googleapis.com/drive/v3/files/' + files[0].id + '?alt=media';
+    var downloadResponse = UrlFetchApp.fetch(downloadUrl, {
+      method: 'get',
+      headers: { Authorization: 'Bearer ' + token },
+      muteHttpExceptions: true
+    });
+    
+    if (downloadResponse.getResponseCode() !== 200) return [];
+    return JSON.parse(downloadResponse.getContentText());
+  } catch (error) {
+    return [];
+  }
 }
 
 function uploadReport(base64Data, fileName, patientCode, phone) {
@@ -654,66 +684,144 @@ const HTML_CODE = `<!DOCTYPE html>
       border: 1px solid var(--card-border);
       border-radius: 20px;
       width: 100%;
-      max-width: 480px;
-      padding: 40px;
+      max-width: 900px;
+      padding: 36px;
       box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 36px;
     }
-    .header { text-align: center; margin-bottom: 32px; }
-    .logo { font-size: 28px; font-weight: 700; background: linear-gradient(to right, #22d3ee, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; }
-    .subtitle { color: var(--text-muted); font-size: 14px; }
-    .form-group { margin-bottom: 20px; }
-    .label { display: block; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 8px; }
+    @media (max-width: 768px) {
+      .card {
+        grid-template-columns: 1fr;
+        max-width: 480px;
+        padding: 24px;
+        gap: 24px;
+      }
+    }
+    .panel-header { margin-bottom: 24px; }
+    .logo { font-size: 24px; font-weight: 700; background: linear-gradient(to right, #22d3ee, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 6px; }
+    .subtitle { color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+    
+    /* Queue List Styles */
+    .queue-search {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      margin-bottom: 16px;
+      transition: all 0.3s;
+    }
+    .queue-search:focus { border-color: var(--primary); }
+    .queue-container {
+      max-height: 380px;
+      overflow-y: auto;
+      padding-right: 6px;
+    }
+    .queue-container::-webkit-scrollbar { width: 5px; }
+    .queue-container::-webkit-scrollbar-track { background: transparent; }
+    .queue-container::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+    .queue-item {
+      background: rgba(15, 23, 42, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .queue-item:hover {
+      border-color: rgba(6, 182, 212, 0.5);
+      background: rgba(6, 182, 212, 0.03);
+    }
+    .queue-item.active {
+      border-color: var(--primary);
+      background: rgba(6, 182, 212, 0.08);
+      box-shadow: 0 0 12px rgba(6, 182, 212, 0.15);
+    }
+    .queue-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .queue-code { font-weight: 600; color: #22d3ee; font-size: 14px; }
+    .queue-badge { background: rgba(6, 182, 212, 0.2); color: #22d3ee; font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 500; text-transform: uppercase; }
+    .queue-tests { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+    .empty-queue { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 14px; background: rgba(15, 23, 42, 0.3); border: 1px dashed rgba(255, 255, 255, 0.08); border-radius: 12px; }
+    
+    /* Upload Panel Styles */
+    .form-group { margin-bottom: 16px; }
+    .label { display: block; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 6px; }
     .input {
       width: 100%;
       background: rgba(15, 23, 42, 0.6);
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 10px;
-      padding: 12px 16px;
+      padding: 10px 14px;
       color: var(--text);
       font-family: inherit;
-      font-size: 15px;
+      font-size: 14px;
       outline: none;
       transition: all 0.3s;
     }
     .input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.2); }
+    .input:read-only { background: rgba(15, 23, 42, 0.8); border-color: rgba(255, 255, 255, 0.05); color: var(--text-muted); cursor: not-allowed; }
+    
+    .selected-banner {
+      background: rgba(6, 182, 212, 0.1);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .selected-banner-text { font-weight: 500; color: #22d3ee; }
+    .clear-selection-btn { background: transparent; border: none; color: #ef4444; cursor: pointer; font-size: 11px; font-weight: 600; text-transform: uppercase; outline: none; }
+    .clear-selection-btn:hover { color: #f87171; }
+    
     .dropzone {
       border: 2px dashed rgba(255, 255, 255, 0.15);
       border-radius: 12px;
-      padding: 30px 20px;
+      padding: 24px 20px;
       text-align: center;
       cursor: pointer;
       transition: all 0.3s;
       background: rgba(15, 23, 42, 0.3);
     }
     .dropzone:hover, .dropzone.dragover { border-color: var(--primary); background: rgba(6, 182, 212, 0.05); }
-    .dropzone-icon { font-size: 32px; margin-bottom: 12px; color: var(--primary); }
-    .dropzone-text { font-size: 14px; margin-bottom: 4px; }
-    .dropzone-subtext { font-size: 12px; color: var(--text-muted); }
-    .file-preview { display: flex; align-items: center; gap: 12px; background: rgba(15, 23, 42, 0.8); padding: 12px; border-radius: 10px; margin-top: 12px; }
-    .file-icon { font-size: 24px; color: #ef4444; }
+    .dropzone-icon { font-size: 28px; margin-bottom: 8px; color: var(--primary); }
+    .dropzone-text { font-size: 13px; margin-bottom: 4px; }
+    .dropzone-subtext { font-size: 11px; color: var(--text-muted); }
+    .file-preview { display: flex; align-items: center; gap: 12px; background: rgba(15, 23, 42, 0.8); padding: 10px; border-radius: 10px; margin-top: 12px; }
+    .file-icon { font-size: 20px; color: #ef4444; }
     .file-info { flex: 1; min-width: 0; }
-    .file-name { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .file-size { font-size: 12px; color: var(--text-muted); }
+    .file-name { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-size { font-size: 11px; color: var(--text-muted); }
     .btn {
       width: 100%;
       background: var(--primary);
       color: white;
       border: none;
       border-radius: 10px;
-      padding: 14px;
-      font-size: 16px;
+      padding: 12px;
+      font-size: 15px;
       font-weight: 600;
       font-family: inherit;
       cursor: pointer;
       transition: all 0.3s;
-      margin-top: 10px;
+      margin-top: 8px;
     }
     .btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
     .btn:active { transform: translateY(0); }
     .btn:disabled { background: rgba(255, 255, 255, 0.1); color: var(--text-muted); cursor: not-allowed; }
-    .error { color: #f87171; font-size: 13px; margin-top: 6px; }
+    .error { color: #f87171; font-size: 12px; margin-top: 6px; }
     
-    .loading-state, .success-state { display: none; text-align: center; }
+    .loading-state, .success-state { display: none; text-align: center; width: 100%; grid-column: span 2; }
+    @media (max-width: 768px) { .loading-state, .success-state { grid-column: span 1; } }
     .spinner { border: 4px solid rgba(255,255,255,0.1); border-top-color: var(--primary); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 20px auto; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
     .progress-text { font-size: 16px; font-weight: 500; margin-bottom: 8px; }
@@ -726,20 +834,34 @@ const HTML_CODE = `<!DOCTYPE html>
   </style>
 </head>
 <body>
-  <div class="card">
-    <div id="form-container">
-      <div class="header">
-        <div class="logo">DocRx</div>
-        <div class="subtitle">Diagnostic Lab Portal</div>
+  <div class="card" id="main-card">
+    <div id="queue-panel">
+      <div class="panel-header">
+        <div class="logo">Pending Orders</div>
+        <div class="subtitle">Select a patient order below to auto-fill the upload form</div>
       </div>
+      <input type="text" id="queue-search" class="queue-search" placeholder="Filter by ID or test name...">
+      <div class="queue-container" id="queue-list"></div>
+    </div>
+
+    <div id="form-container">
+      <div class="panel-header">
+        <div class="logo" id="form-title">Upload Report</div>
+        <div class="subtitle" id="form-subtitle">Choose from the left queue or enter manually</div>
+      </div>
+      <div id="selection-banner" class="selected-banner" style="display:none">
+        <div class="selected-banner-text" id="selected-text"></div>
+        <button type="button" class="clear-selection-btn" onclick="clearSelection()">Manual Input</button>
+      </div>
+
       <form id="upload-form">
         <div class="form-group">
           <label class="label">Patient Code / ID</label>
-          <input type="text" id="patientCode" class="input" placeholder="e.g. PAT-1001" required autocomplete="off">
+          <input type="text" id="patientCode" class="input" placeholder="e.g. PX0001" required autocomplete="off">
         </div>
         <div class="form-group">
           <label class="label">Registered Phone Number</label>
-          <input type="tel" id="phone" class="input" placeholder="e.g. 9876543210" required autocomplete="off">
+          <input type="tel" id="phone" class="input" placeholder="e.g. 9848055331" required autocomplete="off">
         </div>
         <div class="form-group">
           <label class="label">PDF Report</label>
@@ -776,13 +898,16 @@ const HTML_CODE = `<!DOCTYPE html>
         <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
         <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
       </svg>
-      <div class="logo" style="background: #10b981; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Upload Complete!</div>
-      <div class="subtitle" style="margin-top: 8px;">The report has been securely saved. It will sync automatically to the doctor's system.</div>
-      <button onclick="resetForm()" class="btn" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text); margin-top: 30px;">Upload Another File</button>
+      <div class="logo" style="background: #10b981; -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 12px;">Upload Complete!</div>
+      <div class="subtitle" style="margin-top: 8px; line-height: 1.5;">The report has been securely saved. It will sync automatically to the doctor's system.</div>
+      <button onclick="resetForm()" class="btn" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text); margin-top: 30px; max-width: 240px;">Upload Another File</button>
     </div>
   </div>
 
   <script>
+    const queue = <?!= queueData || '[]' ?>;
+    const mainCard = document.getElementById('main-card');
+    const queuePanel = document.getElementById('queue-panel');
     const formContainer = document.getElementById('form-container');
     const loadingContainer = document.getElementById('loading-container');
     const successContainer = document.getElementById('success-container');
@@ -797,31 +922,78 @@ const HTML_CODE = `<!DOCTYPE html>
     const errorMessage = document.getElementById('error-message');
     const submitBtn = document.getElementById('submitBtn');
     
+    const patientCodeInput = document.getElementById('patientCode');
+    const phoneInput = document.getElementById('phone');
+    const selectionBanner = document.getElementById('selection-banner');
+    const selectedText = document.getElementById('selected-text');
+    const queueList = document.getElementById('queue-list');
+    const queueSearch = document.getElementById('queue-search');
+    
     let selectedFile = null;
+    let selectedQueueItem = null;
+    
+    function renderQueue(filterText = '') {
+      queueList.innerHTML = '';
+      const filtered = queue.filter(item => 
+        item.patientCode.toLowerCase().includes(filterText.toLowerCase()) || 
+        item.tests.toLowerCase().includes(filterText.toLowerCase())
+      );
+      
+      if (!filtered.length) {
+        queueList.innerHTML = '<div class="empty-queue">No pending test orders found.</div>';
+        return;
+      }
+      
+      filtered.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'queue-item' + (selectedQueueItem && selectedQueueItem.patientCode === item.patientCode ? ' active' : '');
+        div.innerHTML = \`
+          <div class="queue-item-header">
+            <span class="queue-code">\${item.patientCode}</span>
+            <span class="queue-badge">Pending</span>
+          </div>
+          <div class="queue-tests">\${item.tests}</div>
+        \`;
+        div.addEventListener('click', () => selectQueueItem(item));
+        queueList.appendChild(div);
+      });
+    }
+    
+    function selectQueueItem(item) {
+      selectedQueueItem = item;
+      patientCodeInput.value = item.patientCode;
+      patientCodeInput.readOnly = true;
+      phoneInput.value = item.phone;
+      phoneInput.readOnly = true;
+      selectedText.textContent = \`Uploading for \${item.patientCode} (\${item.tests.split(',')[0]}...)\`;
+      selectionBanner.style.display = 'flex';
+      renderQueue(queueSearch.value);
+    }
+    
+    function clearSelection() {
+      selectedQueueItem = null;
+      patientCodeInput.value = '';
+      patientCodeInput.readOnly = false;
+      phoneInput.value = '';
+      phoneInput.readOnly = false;
+      selectionBanner.style.display = 'none';
+      renderQueue(queueSearch.value);
+    }
+    window.clearSelection = clearSelection;
+    queueSearch.addEventListener('input', (e) => renderQueue(e.target.value));
+    renderQueue();
     
     dropzone.addEventListener('click', () => fileInput.click());
-    
-    dropzone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropzone.classList.add('dragover');
-    });
-    
-    dropzone.addEventListener('dragleave', () => {
-      dropzone.classList.remove('dragover');
-    });
-    
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
     dropzone.addEventListener('drop', (e) => {
       e.preventDefault();
       dropzone.classList.remove('dragover');
-      if (e.dataTransfer.files.length) {
-        handleFile(e.dataTransfer.files[0]);
-      }
+      if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
     });
     
     fileInput.addEventListener('change', (e) => {
-      if (e.target.files.length) {
-        handleFile(e.target.files[0]);
-      }
+      if (e.target.files.length) handleFile(e.target.files[0]);
     });
     
     function handleFile(file) {
@@ -840,7 +1012,6 @@ const HTML_CODE = `<!DOCTYPE html>
         submitBtn.disabled = true;
         return;
       }
-      
       selectedFile = file;
       previewName.textContent = file.name;
       previewSize.textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
@@ -851,13 +1022,13 @@ const HTML_CODE = `<!DOCTYPE html>
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       if (!selectedFile) return;
-      
-      const patientCode = document.getElementById('patientCode').value.trim();
-      const phone = document.getElementById('phone').value.trim();
+      const patientCode = patientCodeInput.value.trim();
+      const phone = phoneInput.value.trim();
       errorMessage.textContent = '';
-      
+      queuePanel.style.display = 'none';
       formContainer.style.display = 'none';
       loadingContainer.style.display = 'block';
+      mainCard.style.gridTemplateColumns = '1fr';
       
       const reader = new FileReader();
       reader.onload = function(evt) {
@@ -881,7 +1052,9 @@ const HTML_CODE = `<!DOCTYPE html>
     
     function showError(msg) {
       loadingContainer.style.display = 'none';
+      queuePanel.style.display = 'block';
       formContainer.style.display = 'block';
+      mainCard.style.gridTemplateColumns = window.innerWidth > 768 ? '1.1fr 0.9fr' : '1fr';
       errorMessage.textContent = 'Upload failed: ' + msg;
     }
     
@@ -891,9 +1064,19 @@ const HTML_CODE = `<!DOCTYPE html>
       filePreview.style.display = 'none';
       submitBtn.disabled = true;
       successContainer.style.display = 'none';
+      queuePanel.style.display = 'block';
       formContainer.style.display = 'block';
+      mainCard.style.gridTemplateColumns = window.innerWidth > 768 ? '1.1fr 0.9fr' : '1fr';
+      clearSelection();
       errorMessage.textContent = '';
+      google.script.run.withSuccessHandler(html => { window.location.reload(); });
     }
+    
+    window.addEventListener('resize', () => {
+      if (loadingContainer.style.display !== 'block' && successContainer.style.display !== 'block') {
+        mainCard.style.gridTemplateColumns = window.innerWidth > 768 ? '1.1fr 0.9fr' : '1fr';
+      }
+    });
   </script>
 </body>
 </html>`;

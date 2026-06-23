@@ -75,6 +75,7 @@ export async function syncWithGoogleDrive(onStatusCallback) {
       await uploadBackupFile(token, localBinary, null);
       
       const now = new Date().toLocaleString('en-IN');
+      await uploadPendingTestsQueue(token, localDb);
       localDb.run("UPDATE settings SET last_sync_timestamp=? WHERE id=1", [now]);
       persistDB();
       
@@ -183,6 +184,7 @@ export async function syncWithGoogleDrive(onStatusCallback) {
     }
 
     // Update settings timestamp
+    await uploadPendingTestsQueue(token, localDb);
     localDb.run("UPDATE settings SET last_sync_timestamp=? WHERE id=1", [now]);
     persistDB();
 
@@ -428,3 +430,43 @@ async function syncAttachments(token, db, status) {
     console.warn('DocRx Sync: Attachment sync failed', err);
   }
 }
+
+async function uploadPendingTestsQueue(token, db) {
+  try {
+    // Select all patients who have diagnostic tests ordered, but visit doesn't have an attachment yet
+    const res = db.exec(`
+      SELECT p.patient_code, p.phone, group_concat(t.test_name, ', ') as tests
+      FROM diagnostic_tests t
+      JOIN visits v ON t.visit_id = v.id
+      JOIN patients p ON v.patient_id = p.id
+      WHERE v.deleted = 0 AND t.deleted = 0 AND v.attachment_idb_key IS NULL
+      GROUP BY v.id
+    `);
+    
+    const queue = [];
+    if (res.length && res[0].values.length) {
+      res[0].values.forEach(row => {
+        queue.push({
+          patientCode: row[0],
+          phone: row[1],
+          tests: row[2]
+        });
+      });
+    }
+    
+    const { uploadFileToAppData, findFileByName, updateFileInAppData } = await import('./drive.js');
+    const jsonBlob = new Blob([JSON.stringify(queue, null, 2)], { type: 'application/json' });
+    const filename = 'pending_tests_queue.json';
+    
+    const existingFile = await findFileByName(token, filename);
+    if (existingFile) {
+      await updateFileInAppData(token, jsonBlob, existingFile.id);
+    } else {
+      await uploadFileToAppData(token, jsonBlob, filename);
+    }
+    console.log("DocRx Sync: Uploaded pending tests queue successfully.");
+  } catch (err) {
+    console.warn("DocRx Sync: Failed to upload pending tests queue:", err);
+  }
+}
+
