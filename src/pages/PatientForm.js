@@ -146,7 +146,7 @@ export function renderPatientForm(container, params = {}) {
           </button>
           <button type="button" class="btn btn-secondary btn-lg" onclick="history.back()">Cancel</button>
           ${isEdit ? `
-          <button type="button" class="btn btn-lg" style="background:#ef4444;color:white;margin-left:auto" onclick="window.__deletePatient(${id})" title="Delete Patient">
+          <button type="button" class="btn btn-lg" style="background:#ef4444;color:white;margin-left:auto" onclick="window.__deletePatient('${id}')" title="Delete Patient">
             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
           </button>
           ` : ''}
@@ -158,15 +158,19 @@ export function renderPatientForm(container, params = {}) {
   // DOB → Age auto-fill
   container.querySelector('#dob').addEventListener('change', (e) => {
     const dob = new Date(e.target.value);
-    if (!isNaN(dob)) {
-      const age = Math.floor((Date.now() - dob) / (365.25 * 24 * 60 * 60 * 1000));
-      container.querySelector('#age').value = age;
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+      age--;
     }
+    const ageInput = container.querySelector('#age');
+    if (ageInput) ageInput.value = isNaN(age) ? '' : age;
   });
 
   // --- Delete Patient ---
   window.__deletePatient = async (pId) => {
-    if (!confirm('WARNING: Are you sure you want to completely delete this patient and ALL their visits, prescriptions, and tests? This CANNOT be undone!')) return;
+    if (!confirm('WARNING: Are you sure you want to completely delete this patient and ALL their visits, prescriptions, tests, and financial data? This CANNOT be undone!')) return;
     const { run } = await import('../db/index.js');
     const now = new Date().toISOString();
     run('UPDATE prescriptions SET deleted=1, deleted_at=?, updated_at=? WHERE visit_id IN (SELECT id FROM visits WHERE patient_id=?)', [now, now, pId]);
