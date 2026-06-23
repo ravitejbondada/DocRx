@@ -526,6 +526,10 @@ export function renderSettings(container) {
 function e(val) { return val != null ? String(val).replace(/"/g, '&quot;').replace(/</g, '&lt;') : ''; }
 
 const GS_CODE = `function doGet(e) {
+  // Dummy reference to trigger Drive API scope authorization in Apps Script
+  if (false) {
+    DriveApp.getRootFolder();
+  }
   return HtmlService.createTemplateFromFile('Upload')
       .evaluate()
       .setTitle('DocRx Lab Report Portal')
