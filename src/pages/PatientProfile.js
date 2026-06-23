@@ -242,7 +242,7 @@ export function renderPatientProfile(container, params) {
         run('UPDATE visits SET attachment_idb_key=? WHERE id=?', [fileKey, vId]);
         
         // Refresh page
-        renderPatientProfile(container, { patientId });
+        renderPatientProfile(container, { id });
       } catch (err) {
         console.error(err);
         const { toast } = await import('../components/Toast.js');

@@ -26,11 +26,44 @@ import { renderAnalytics }      from './pages/Analytics.js';
 import './print/prescription.js';
 import './print/whatsapp.js';
 
-// File viewer (lazy global)
 window.__viewFile = async (key) => {
-  const { get } = await import('idb-keyval');
-  const blob = await get(key);
-  if (!blob) { alert('File not found in storage.'); return; }
+  const { get, set } = await import('idb-keyval');
+  let blob = await get(key);
+  
+  if (!blob) {
+    // Attempt lazy download if Google Drive token is present
+    const { getSavedToken, downloadBackupFile } = await import('./backup/drive.js');
+    const token = getSavedToken();
+    if (token) {
+      const { toast } = await import('./components/Toast.js');
+      toast.info('Downloading report from Google Drive...');
+      try {
+        // Find file by name in AppDataFolder
+        const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='${key}' and trashed=false&fields=files(id)`;
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const file = data.files?.[0];
+          if (file) {
+            const buffer = await downloadBackupFile(token, file.id);
+            blob = new File([buffer], key.split('_').slice(2).join('_') || 'Report.pdf', { type: 'application/pdf' });
+            await set(key, blob);
+            toast.success('Download complete!');
+          }
+        }
+      } catch (err) {
+        console.warn('Lazy download failed', err);
+      }
+    }
+  }
+
+  if (!blob) {
+    alert('File not found in storage. Ensure you are connected to the internet and Google Drive sync is active.');
+    return;
+  }
+  
   const url = URL.createObjectURL(blob);
   window.open(url, '_blank');
 };

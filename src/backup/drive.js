@@ -150,3 +150,72 @@ export async function uploadBackupFile(token, dbBinary, existingFile = null) {
     return await res.json();
   }
 }
+
+export async function listAppDataFiles(token) {
+  const url = 'https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=trashed=false&fields=files(id,name,size,createdTime)';
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (!res.ok) throw new Error('Failed to list files in Google Drive AppData folder');
+  const data = await res.json();
+  return data.files || [];
+}
+
+export async function uploadFileToAppData(token, blob, filename) {
+  const metadata = {
+    name: filename,
+    parents: ['appDataFolder']
+  };
+  
+  const boundary = 'docrx_multipart_boundary';
+  const delimiter = `\r\n--${boundary}\r\n`;
+  const closeDelimiter = `\r\n--${boundary}--`;
+  
+  const reader = new FileReader();
+  const binaryPromise = new Promise((resolve) => {
+    reader.onload = () => resolve(reader.result);
+    reader.readAsBinaryString(blob);
+  });
+  
+  const fileContent = await binaryPromise;
+  const multipartBody = 
+    delimiter +
+    'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+    JSON.stringify(metadata) +
+    delimiter +
+    'Content-Type: ' + (blob.type || 'application/octet-stream') + '\r\n' +
+    'Content-Transfer-Encoding: base64\r\n\r\n' +
+    btoa(fileContent) +
+    closeDelimiter;
+
+  const url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': `multipart/related; boundary=${boundary}`
+    },
+    body: multipartBody
+  });
+  
+  if (!res.ok) throw new Error(`Failed to upload ${filename} to Google Drive`);
+  return await res.json();
+}
+
+export async function deleteFileFromAppData(token, fileId) {
+  const url = `https://www.googleapis.com/drive/v3/files/${fileId}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (!res.ok) throw new Error('Failed to delete file from Google Drive');
+  return true;
+}
+
+export async function listIncomingReports(token) {
+  const files = await listAppDataFiles(token);
+  return files.filter(f => f.name && f.name.startsWith('incoming_report_') && f.name.endsWith('.pdf'));
+}
+
+export const deleteReportFile = deleteFileFromAppData;
+

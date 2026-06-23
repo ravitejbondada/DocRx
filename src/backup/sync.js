@@ -59,10 +59,17 @@ export async function syncWithGoogleDrive(onStatusCallback) {
   const localDb = getDB();
 
   try {
+    // Ingest any reports first, which might update the database
+    await ingestIncomingReports(token, localDb);
+
     const cloudFile = await findBackupFile(token);
 
     if (!cloudFile) {
       status({ type: 'syncing', message: 'Creating new backup on Google Drive...' });
+      
+      // Sync local attachments to cloud first
+      await syncAttachments(token, localDb, status);
+      
       const localBinary = localDb.export();
       await uploadBackupFile(token, localBinary, null);
       
@@ -147,6 +154,9 @@ export async function syncWithGoogleDrive(onStatusCallback) {
     localDb.run("PRAGMA foreign_keys = ON");
     cloudDb.run("PRAGMA foreign_keys = ON");
 
+    // Sync attachments
+    await syncAttachments(token, localDb, status);
+
     const now = new Date().toLocaleString('en-IN');
     
     if (isLocalModified || isCloudModified) {
@@ -221,4 +231,186 @@ if (typeof window !== 'undefined') {
     console.log('DocRx: Internet connection regained. Scheduling sync...');
     triggerBackgroundSyncDebounced();
   });
+}
+
+// ── Ingestion & Sync Helpers for Attachments ──────────────────
+
+async function ingestIncomingReports(token, db) {
+  try {
+    const { listIncomingReports, downloadBackupFile, deleteReportFile } = await import('./drive.js');
+    const { get, set } = await import('idb-keyval');
+    const { PDFDocument } = await import('pdf-lib');
+    
+    const files = await listIncomingReports(token);
+    if (!files.length) return 0;
+    
+    let processedCount = 0;
+    
+    for (const file of files) {
+      // Filename format: incoming_report_[PatientCode]_[Phone]_[Timestamp].pdf
+      const nameWithoutExt = file.name.substring(0, file.name.length - 4); // Remove .pdf
+      const parts = nameWithoutExt.split('_');
+      if (parts.length < 5) continue;
+      
+      const patientCode = parts[2];
+      const phone = parts[3];
+      
+      // Look up patient in local DB
+      const patientResult = db.exec(`SELECT id, phone, full_name FROM patients WHERE patient_code = ? AND deleted = 0`, [patientCode]);
+      if (!patientResult.length || !patientResult[0].values.length) {
+        console.warn(`DocRx Ingest: Patient code ${patientCode} not found or deleted.`);
+        continue;
+      }
+      
+      const [patientId, dbPhone, fullName] = patientResult[0].values[0];
+      
+      // Verify phone number matching (digit-only comparison)
+      const cleanDbPhone = String(dbPhone).replace(/\D/g, '');
+      const cleanFilePhone = String(phone).replace(/\D/g, '');
+      if (cleanDbPhone !== cleanFilePhone) {
+        console.warn(`DocRx Ingest: Phone mismatch for ${patientCode}. DB: ${cleanDbPhone}, File: ${cleanFilePhone}`);
+        continue;
+      }
+      
+      // Download file as arrayBuffer
+      const cloudBuffer = await downloadBackupFile(token, file.id);
+      
+      // Find latest visit
+      const visitResult = db.exec(`SELECT id, attachment_idb_key FROM visits WHERE patient_id = ? AND deleted = 0 ORDER BY visit_date DESC, created_at DESC LIMIT 1`, [patientId]);
+      
+      let visitId;
+      let existingKey = null;
+      if (visitResult.length && visitResult[0].values.length) {
+        [visitId, existingKey] = visitResult[0].values[0];
+      }
+      
+      let finalFile;
+      if (existingKey) {
+        const existingFile = await get(existingKey);
+        if (existingFile && existingFile.type === 'application/pdf') {
+          try {
+            const existingArrayBuffer = await existingFile.arrayBuffer();
+            const pdfDoc = await PDFDocument.load(existingArrayBuffer);
+            const newPdfDoc = await PDFDocument.load(cloudBuffer);
+            const copiedPages = await pdfDoc.copyPages(newPdfDoc, newPdfDoc.getPageIndices());
+            copiedPages.forEach((page) => pdfDoc.addPage(page));
+            
+            const pdfBytes = await pdfDoc.save();
+            finalFile = new File([pdfBytes], 'Combined_Report.pdf', { type: 'application/pdf' });
+          } catch (e) {
+            console.error("DocRx Ingest: PDF merge error, saving new file instead", e);
+            finalFile = new File([cloudBuffer], 'Combined_Report.pdf', { type: 'application/pdf' });
+          }
+        } else {
+          finalFile = new File([cloudBuffer], 'Combined_Report.pdf', { type: 'application/pdf' });
+        }
+      } else {
+        finalFile = new File([cloudBuffer], 'Combined_Report.pdf', { type: 'application/pdf' });
+      }
+      
+      const fileKey = 'visit_' + Date.now() + '_' + Math.random().toString(36).substring(7) + '_Combined_Report.pdf';
+      await set(fileKey, finalFile);
+      
+      if (visitId) {
+        db.run(`UPDATE visits SET attachment_idb_key = ?, updated_at = datetime('now','localtime') WHERE id = ?`, [fileKey, visitId]);
+      } else {
+        visitId = crypto.randomUUID();
+        db.run(`
+          INSERT INTO visits (id, patient_id, visit_date, chief_complaint, diagnosis, clinical_notes, visit_type, fee, attachment_idb_key, created_at, updated_at, deleted)
+          VALUES (?, ?, date('now','localtime'), ?, ?, ?, 'New', 0, ?, datetime('now','localtime'), datetime('now','localtime'), 0)
+        `, [visitId, patientId, 'Diagnostic Lab Report', 'Diagnostic Lab Report', 'Uploaded from Diagnostic Center Lab Portal', fileKey]);
+      }
+      
+      // Delete the file from Google Drive
+      await deleteReportFile(token, file.id);
+      processedCount++;
+      
+      import('../components/Toast.js').then(({ toast }) => {
+        toast.success(`Imported lab report for ${fullName} (${patientCode}).`);
+      });
+    }
+    
+    return processedCount;
+  } catch (error) {
+    console.error("DocRx Ingest: Error in ingestIncomingReports:", error);
+    return 0;
+  }
+}
+
+async function syncAttachments(token, db, status) {
+  try {
+    status?.({ type: 'syncing', message: 'Synchronizing attachment files...' });
+    const { listAppDataFiles, uploadFileToAppData, downloadBackupFile, deleteFileFromAppData } = await import('./drive.js');
+    const { keys, get, set, del } = await import('idb-keyval');
+    
+    // 1. Get all referenced attachment keys from database
+    const visitsRes = db.exec("SELECT DISTINCT attachment_idb_key FROM visits WHERE attachment_idb_key IS NOT NULL AND deleted = 0");
+    const referencedKeys = new Set();
+    if (visitsRes.length && visitsRes[0].values.length) {
+      visitsRes[0].values.forEach(row => {
+        if (row[0]) referencedKeys.add(row[0]);
+      });
+    }
+    
+    // 2. Get local IndexedDB keys starting with 'visit_'
+    const localKeys = (await keys()).filter(k => typeof k === 'string' && k.startsWith('visit_'));
+    const localKeySet = new Set(localKeys);
+    
+    // 3. Get all files in Google Drive AppData folder
+    const driveFiles = await listAppDataFiles(token);
+    const driveFileMap = new Map(driveFiles.map(f => [f.name, f.id]));
+    
+    let hasChanges = false;
+    
+    // A. Upload missing local files to Google Drive
+    for (const key of referencedKeys) {
+      if (localKeySet.has(key) && !driveFileMap.has(key)) {
+        console.log(`DocRx Sync: Uploading attachment ${key} to Drive...`);
+        const blob = await get(key);
+        if (blob) {
+          await uploadFileToAppData(token, blob, key);
+        }
+      }
+    }
+    
+    // B. Download missing cloud files from Google Drive
+    for (const key of referencedKeys) {
+      if (!localKeySet.has(key) && driveFileMap.has(key)) {
+        console.log(`DocRx Sync: Downloading attachment ${key} from Drive...`);
+        const fileId = driveFileMap.get(key);
+        const buffer = await downloadBackupFile(token, fileId);
+        const blob = new File([buffer], key.split('_').slice(2).join('_') || 'Report.pdf', { type: 'application/pdf' });
+        await set(key, blob);
+        hasChanges = true;
+      }
+    }
+    
+    // C. Garbage collection: Delete orphaned attachments from Drive
+    for (const [name, id] of driveFileMap.entries()) {
+      if (name.startsWith('visit_') && !referencedKeys.has(name)) {
+        console.log(`DocRx Sync: Deleting orphaned attachment ${name} from Drive...`);
+        await deleteFileFromAppData(token, id);
+      }
+    }
+    
+    // D. Garbage collection: Delete orphaned attachments from local IndexedDB
+    for (const key of localKeys) {
+      if (!referencedKeys.has(key)) {
+        console.log(`DocRx Sync: Deleting orphaned attachment ${key} from local IndexedDB...`);
+        await del(key);
+        hasChanges = true;
+      }
+    }
+    
+    if (hasChanges) {
+      import('../components/Toast.js').then(({ toast }) => {
+        toast.info('Attachments updated from Google Drive. Refreshing...');
+      });
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    }
+  } catch (err) {
+    console.warn('DocRx Sync: Attachment sync failed', err);
+  }
 }
