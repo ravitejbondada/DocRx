@@ -750,8 +750,13 @@ export function renderVisitForm(container, params) {
       });
 
       // Save tests
+      const savedTestNames = new Set();
       testRowData.forEach(t => {
         if (!t.test_name) return;
+        const normalized = t.test_name.trim().toLowerCase();
+        if (savedTestNames.has(normalized)) return;
+        savedTestNames.add(normalized);
+        
         const testId = t.id || crypto.randomUUID();
         const uploadedVal = t.uploaded !== undefined ? t.uploaded : 0;
         

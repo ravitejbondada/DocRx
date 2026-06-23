@@ -646,18 +646,18 @@ function getPendingTestsQueue() {
   }
 }
 
-function uploadReport(base64Data, fileName, patientCode, phone, authCode, visitId, selectedTestIdsStr) {
+function uploadReport(base64Data, fileName, patientCode, authCode, visitId, selectedTestIdsStr) {
   try {
     patientCode = patientCode.toUpperCase().trim();
-    phone = phone.replace(/[\\s\\-\\(\\)]/g, '').trim();
     authCode = authCode.trim();
     
-    if (!patientCode || !phone || !authCode) {
-      return { success: false, error: 'Patient Code, Phone, and Authorization Code are required.' };
+    if (!patientCode || !authCode) {
+      return { success: false, error: 'Patient Code and Authorization Code are required.' };
     }
     
     // Validate Auth Code against the queue
-    var queue = getPendingTestsQueue();
+    var rawQueue = getPendingTestsQueue();
+    var queue = Array.isArray(rawQueue) ? rawQueue : (rawQueue.queue || []);
     var matched = null;
     if (visitId) {
       for (var i = 0; i < queue.length; i++) {
@@ -668,12 +668,7 @@ function uploadReport(base64Data, fileName, patientCode, phone, authCode, visitI
       }
     } else {
       for (var i = 0; i < queue.length; i++) {
-        var qPhone = queue[i].phone.replace(/\\D/g, '');
-        var cleanPhone = phone.replace(/\\D/g, '');
-        var qPhoneMatch = qPhone.length >= 10 ? qPhone.slice(-10) : qPhone;
-        var cleanPhoneMatch = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
-        
-        if (queue[i].patientCode.toUpperCase() === patientCode && qPhoneMatch === cleanPhoneMatch) {
+        if (queue[i].patientCode.toUpperCase() === patientCode) {
           matched = queue[i];
           break;
         }
@@ -688,6 +683,7 @@ function uploadReport(base64Data, fileName, patientCode, phone, authCode, visitI
       return { success: false, error: 'Invalid Authorization Code. Please check the order printout.' };
     }
     
+    var phone = matched.phone || '0000000000';
     var vId = visitId || matched.visitId;
     var tIds = selectedTestIdsStr || 'all';
     
@@ -999,6 +995,11 @@ const HTML_CODE = `<!DOCTYPE html>
 </head>
 <body>
   <div class="card" id="main-card">
+    <div id="portal-header" style="grid-column: 1 / -1; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 16px; margin-bottom: -10px; display: none;">
+      <div id="portal-clinic-name" style="font-size: 22px; font-weight: 700; background: linear-gradient(to right, #22d3ee, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 4px;">DocRx Lab Portal</div>
+      <div id="portal-doctor-name" style="font-size: 13px; color: var(--text-muted); font-weight: 500;">Connecting Diagnostic Partners</div>
+    </div>
+
     <div id="queue-panel">
       <div class="panel-header">
         <div class="logo">Pending Orders</div>
@@ -1006,6 +1007,9 @@ const HTML_CODE = `<!DOCTYPE html>
       </div>
       <input type="text" id="queue-search" class="queue-search" placeholder="Filter by ID or test name...">
       <div class="queue-container" id="queue-list"></div>
+      <div style="margin-top: 16px; padding: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 10px; font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+        ⚠️ <strong>Older Orders:</strong> Only orders from the last 7 days are listed here. For older orders, please type the Patient ID and Auth Code directly on the right.
+      </div>
     </div>
 
     <div id="form-container">
@@ -1022,10 +1026,6 @@ const HTML_CODE = `<!DOCTYPE html>
         <div class="form-group">
           <label class="label">Patient Code / ID</label>
           <input type="text" id="patientCode" class="input" placeholder="e.g. PX0001" required autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label class="label">Registered Phone Number</label>
-          <input type="tel" id="phone" class="input" placeholder="e.g. 9848055331" required autocomplete="off">
         </div>
         <div class="form-group" id="tests-select-group" style="display:none">
           <label class="label">Select Tests Included in this Report</label>
@@ -1085,7 +1085,18 @@ const HTML_CODE = `<!DOCTYPE html>
   </div>
 
   <script>
-    const queue = <?!= queueData || '[]' ?>;
+    const queueRaw = <?!= queueData || '[]' ?>;
+    const isArray = Array.isArray(queueRaw);
+    const queue = isArray ? queueRaw : (queueRaw.queue || []);
+    const doctorName = isArray ? '' : (queueRaw.doctorName || '');
+    const clinicName = isArray ? '' : (queueRaw.clinicName || '');
+    
+    if (clinicName || doctorName) {
+      document.getElementById('portal-header').style.display = 'block';
+      if (clinicName) document.getElementById('portal-clinic-name').textContent = clinicName;
+      if (doctorName) document.getElementById('portal-doctor-name').textContent = 'Prescribed by ' + doctorName;
+    }
+
     const mainCard = document.getElementById('main-card');
     const queuePanel = document.getElementById('queue-panel');
     const formContainer = document.getElementById('form-container');
@@ -1103,7 +1114,6 @@ const HTML_CODE = `<!DOCTYPE html>
     const submitBtn = document.getElementById('submitBtn');
     
     const patientCodeInput = document.getElementById('patientCode');
-    const phoneInput = document.getElementById('phone');
     const authCodeInput = document.getElementById('authCode');
     const testsSelectGroup = document.getElementById('tests-select-group');
     const testsCheckboxList = document.getElementById('tests-checkbox-list');
@@ -1116,16 +1126,38 @@ const HTML_CODE = `<!DOCTYPE html>
     let selectedQueueItem = null;
     let currentVisitId = null;
     
+    function getDaysDifference(dateStr) {
+      if (!dateStr) return 999;
+      const parts = dateStr.split('-');
+      if (parts.length !== 3) return 999;
+      const visitYear = parseInt(parts[0], 10);
+      const visitMonth = parseInt(parts[1], 10) - 1;
+      const visitDay = parseInt(parts[2], 10);
+      
+      const visitDate = new Date(visitYear, visitMonth, visitDay);
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      visitDate.setHours(0,0,0,0);
+      
+      const diffTime = today.getTime() - visitDate.getTime();
+      return diffTime / (1000 * 60 * 60 * 24);
+    }
+
     function renderQueue(filterText = '') {
       queueList.innerHTML = '';
       const filtered = queue.filter(item => {
         const testNames = item.tests.map(t => t.name).join(', ');
-        return item.patientCode.toLowerCase().includes(filterText.toLowerCase()) || 
-               testNames.toLowerCase().includes(filterText.toLowerCase());
+        const matchesSearch = item.patientCode.toLowerCase().includes(filterText.toLowerCase()) || 
+                              testNames.toLowerCase().includes(filterText.toLowerCase());
+        
+        const diffDays = getDaysDifference(item.visitDate);
+        const isRecent = diffDays >= 0 && diffDays <= 7;
+        
+        return matchesSearch && isRecent;
       });
       
       if (!filtered.length) {
-        queueList.innerHTML = '<div class="empty-queue">No pending test orders found.</div>';
+        queueList.innerHTML = '<div class="empty-queue">No recent pending orders found.</div>';
         return;
       }
       
@@ -1138,9 +1170,12 @@ const HTML_CODE = `<!DOCTYPE html>
         const totalCount = item.tests.length;
         const badgeText = pendingCount === totalCount ? 'Pending' : 'Partial (' + pendingCount + '/' + totalCount + ')';
         
+        const displayDate = item.visitDate ? item.visitDate.split('-').reverse().join('/') : '';
+        const dateSub = displayDate ? ' <span style="font-size: 11px; color: var(--text-muted); font-weight: normal; margin-left: 6px;">(' + displayDate + ')</span>' : '';
+        
         div.innerHTML = \`
           <div class="queue-item-header">
-            <span class="queue-code">\${item.patientCode}</span>
+            <span class="queue-code">\${item.patientCode}\${dateSub}</span>
             <span class="queue-badge" style="\${pendingCount === totalCount ? '' : 'background: rgba(234, 179, 8, 0.2); color: #eab308;'}">\&nbsp;\${badgeText}\&nbsp;</span>
           </div>
           <div class="queue-tests">\${testNames}</div>
@@ -1182,8 +1217,6 @@ const HTML_CODE = `<!DOCTYPE html>
       selectedQueueItem = item;
       patientCodeInput.value = item.patientCode;
       patientCodeInput.readOnly = true;
-      phoneInput.value = item.phone;
-      phoneInput.readOnly = true;
       
       const pendingCount = item.tests.filter(t => !t.uploaded).length;
       selectedText.textContent = 'Uploading for ' + item.patientCode + ' (' + pendingCount + ' pending)';
@@ -1196,8 +1229,6 @@ const HTML_CODE = `<!DOCTYPE html>
       selectedQueueItem = null;
       patientCodeInput.value = '';
       patientCodeInput.readOnly = false;
-      phoneInput.value = '';
-      phoneInput.readOnly = false;
       selectionBanner.style.display = 'none';
       renderQueue(queueSearch.value);
       testsSelectGroup.style.display = 'none';
@@ -1210,21 +1241,14 @@ const HTML_CODE = `<!DOCTYPE html>
       if (selectedQueueItem) return;
       
       const code = patientCodeInput.value.trim().toUpperCase();
-      const rawPhone = phoneInput.value.trim().replace(/\\D/g, '');
-      const phoneMatch = rawPhone.length >= 10 ? rawPhone.slice(-10) : rawPhone;
-      
-      if (!code || !phoneMatch) {
+      if (!code) {
         testsSelectGroup.style.display = 'none';
         currentVisitId = null;
         validateForm();
         return;
       }
       
-      const matched = queue.find(item => {
-        const itemPhone = item.phone.replace(/\\D/g, '');
-        const itemPhoneMatch = itemPhone.length >= 10 ? itemPhone.slice(-10) : itemPhone;
-        return item.patientCode.toUpperCase() === code && itemPhoneMatch === phoneMatch;
-      });
+      const matched = queue.find(item => item.patientCode.toUpperCase() === code);
       
       if (matched) {
         showTestsForOrder(matched);
@@ -1236,7 +1260,6 @@ const HTML_CODE = `<!DOCTYPE html>
     }
     
     patientCodeInput.addEventListener('input', checkManualMatch);
-    phoneInput.addEventListener('input', checkManualMatch);
     
     authCodeInput.addEventListener('input', (e) => {
       e.target.value = e.target.value.replace(/\\D/g, '').slice(0, 4);
@@ -1246,7 +1269,6 @@ const HTML_CODE = `<!DOCTYPE html>
     function validateForm() {
       const file = selectedFile;
       const code = patientCodeInput.value.trim();
-      const phone = phoneInput.value.trim();
       const auth = authCodeInput.value.trim();
       
       let testsGroupVisible = testsSelectGroup.style.display === 'block';
@@ -1263,14 +1285,8 @@ const HTML_CODE = `<!DOCTYPE html>
       
       if (selectedQueueItem) {
         matchedOrder = selectedQueueItem;
-      } else if (code && phone) {
-        const rawPhone = phone.replace(/\\D/g, '');
-        const phoneMatch = rawPhone.length >= 10 ? rawPhone.slice(-10) : rawPhone;
-        matchedOrder = queue.find(item => {
-          const itemPhone = item.phone.replace(/\\D/g, '');
-          const itemPhoneMatch = itemPhone.length >= 10 ? itemPhone.slice(-10) : itemPhone;
-          return item.patientCode.toUpperCase() === code.toUpperCase() && itemPhoneMatch === phoneMatch;
-        });
+      } else if (code) {
+        matchedOrder = queue.find(item => item.patientCode.toUpperCase() === code.toUpperCase());
       }
       
       if (matchedOrder && auth === matchedOrder.authCode) {
@@ -1287,7 +1303,7 @@ const HTML_CODE = `<!DOCTYPE html>
       }
       
       const hasPendingOrder = testsGroupVisible;
-      const isValid = file && code && phone && authIsCorrect && hasPendingOrder && anyChecked;
+      const isValid = file && code && authIsCorrect && hasPendingOrder && anyChecked;
       submitBtn.disabled = !isValid;
     }
     
@@ -1334,7 +1350,6 @@ const HTML_CODE = `<!DOCTYPE html>
       e.preventDefault();
       if (!selectedFile) return;
       const patientCode = patientCodeInput.value.trim();
-      const phone = phoneInput.value.trim();
       const authCode = authCodeInput.value.trim();
       
       const selectedTestIds = [];
@@ -1365,7 +1380,7 @@ const HTML_CODE = `<!DOCTYPE html>
           .withFailureHandler((err) => {
             showError(err.toString());
           })
-          .uploadReport(base64Data, selectedFile.name, patientCode, phone, authCode, currentVisitId, selectedTestIdsStr);
+          .uploadReport(base64Data, selectedFile.name, patientCode, authCode, currentVisitId, selectedTestIdsStr);
       };
       reader.readAsDataURL(selectedFile);
     });

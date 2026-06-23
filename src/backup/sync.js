@@ -285,16 +285,6 @@ async function ingestIncomingReports(token, db) {
       
       const [patientId, dbPhone, fullName] = patientResult[0].values[0];
       
-      // Verify phone number matching (digit-only comparison, matching last 10 digits for country-code resilience)
-      const cleanDbPhone = String(dbPhone).replace(/\D/g, '');
-      const cleanFilePhone = String(phone).replace(/\D/g, '');
-      const matchDb = cleanDbPhone.length >= 10 ? cleanDbPhone.slice(-10) : cleanDbPhone;
-      const matchFile = cleanFilePhone.length >= 10 ? cleanFilePhone.slice(-10) : cleanFilePhone;
-      if (matchDb !== matchFile) {
-        console.warn(`DocRx Ingest: Phone mismatch for ${patientCode}. DB: ${cleanDbPhone}, File: ${cleanFilePhone}`);
-        continue;
-      }
-      
       // Download file as arrayBuffer
       const cloudBuffer = await downloadBackupFile(token, file.id);
       
@@ -312,6 +302,9 @@ async function ingestIncomingReports(token, db) {
       if (visitResult.length && visitResult[0].values.length) {
         [matchedVisitId, existingKey] = visitResult[0].values[0];
       }
+      
+      // Track original visit ID to correctly update diagnostic tests status
+      const targetVisitId = matchedVisitId || (visitId && visitId !== 'manual' ? visitId : null);
       
       let finalFile;
       let shouldCreateNewVisit = false;
@@ -356,14 +349,14 @@ async function ingestIncomingReports(token, db) {
       }
       
       // Update tests uploaded status
-      if (visitId) {
+      if (targetVisitId) {
         if (testIdsStr && testIdsStr !== 'all') {
           const testIds = testIdsStr.split('+').filter(Boolean);
           for (const tid of testIds) {
             db.run(`UPDATE diagnostic_tests SET uploaded = 1, result_date = date('now','localtime'), updated_at = datetime('now','localtime') WHERE id = ?`, [tid]);
           }
         } else {
-          db.run(`UPDATE diagnostic_tests SET uploaded = 1, result_date = date('now','localtime'), updated_at = datetime('now','localtime') WHERE visit_id = ? AND deleted = 0`, [visitId]);
+          db.run(`UPDATE diagnostic_tests SET uploaded = 1, result_date = date('now','localtime'), updated_at = datetime('now','localtime') WHERE visit_id = ? AND deleted = 0`, [targetVisitId]);
         }
       }
       
@@ -463,11 +456,24 @@ async function syncAttachments(token, db, status) {
 
 async function uploadPendingTestsQueue(token, db) {
   try {
+    // Fetch doctor and clinic name
+    let doctorName = '';
+    let clinicName = '';
+    try {
+      const settingsRes = db.exec("SELECT doctor_name, clinic_name FROM settings WHERE id = 1");
+      if (settingsRes.length && settingsRes[0].values.length) {
+        doctorName = settingsRes[0].values[0][0] || '';
+        clinicName = settingsRes[0].values[0][1] || '';
+      }
+    } catch (e) {
+      console.warn("DocRx Sync: Failed to fetch doctor/clinic settings:", e);
+    }
+
     // Select all patients who have diagnostic tests ordered, where at least one test is not uploaded yet
     const res = db.exec(`
       SELECT p.patient_code, p.phone, v.id as visit_id, v.auth_code,
              group_concat(t.id || ':' || t.test_name || ':' || t.uploaded, ';') as test_details,
-             p.full_name
+             p.full_name, v.visit_date
       FROM diagnostic_tests t
       JOIN visits v ON t.visit_id = v.id
       JOIN patients p ON v.patient_id = p.id
@@ -491,14 +497,24 @@ async function uploadPendingTestsQueue(token, db) {
         }
         
         const testDetailsStr = row[4] || '';
-        const tests = testDetailsStr.split(';').map(item => {
+        const testsMap = new Map();
+        testDetailsStr.split(';').forEach(item => {
           const parts = item.split(':');
-          return {
-            id: parts[0],
-            name: parts[1],
-            uploaded: parseInt(parts[2], 10) || 0
-          };
+          if (parts.length < 3) return;
+          const testId = parts[0];
+          const testName = parts[1];
+          const uploaded = parseInt(parts[2], 10) || 0;
+          const normalized = testName.trim().toLowerCase();
+          
+          if (!testsMap.has(normalized) || (testsMap.get(normalized).uploaded && !uploaded)) {
+            testsMap.set(normalized, {
+              id: testId,
+              name: testName,
+              uploaded: uploaded
+            });
+          }
         });
+        const tests = Array.from(testsMap.values());
         
         queue.push({
           patientCode: row[0],
@@ -506,13 +522,19 @@ async function uploadPendingTestsQueue(token, db) {
           visitId: visitId,
           authCode: authCode,
           tests: tests,
-          patientName: row[5]
+          patientName: row[5],
+          visitDate: row[6]
         });
       }
     }
     
     const { uploadFileToAppData, findFileByName, updateFileInAppData } = await import('./drive.js');
-    const jsonBlob = new Blob([JSON.stringify(queue, null, 2)], { type: 'application/json' });
+    const payload = {
+      doctorName: doctorName,
+      clinicName: clinicName,
+      queue: queue
+    };
+    const jsonBlob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const filename = 'pending_tests_queue.json';
     
     const existingFile = await findFileByName(token, filename);
