@@ -101,6 +101,8 @@ export async function _executePrint(visitId, pharmacyId = null, diagCenterId = n
     /* Setting margin: 0 removes browser default headers/footers in Chrome/Edge */
     @page { size: A4 portrait; margin: 0; }
     html, body {
+      width: 210mm;
+      min-width: 210mm;
       font-family: 'Inter', Arial, sans-serif;
       color: #1e293b; background: #ffffff !important; font-size: 11pt;
     }
@@ -263,7 +265,7 @@ export async function _executePrint(visitId, pharmacyId = null, diagCenterId = n
         margin: 0,
         filename: `Prescription_${patient.patient_code}_${formatDate(visit.visit_date).replace(/ /g, '_')}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, windowWidth: 1200 },
+        html2canvas: { scale: 2, windowWidth: 794 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         pagebreak: { mode: ['css', 'legacy'], avoid: '.print-page' }
       };
