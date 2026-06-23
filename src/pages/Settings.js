@@ -12,6 +12,7 @@ export function renderSettings(container) {
   const s = queryOne('SELECT * FROM settings WHERE id=1') || {};
   const params = getParams();
   const activeTab = params.tab || 'clinic';
+  const portalUrl = localStorage.getItem('docrx_portal_url') || '';
 
   const storageRaw = localStorage.getItem('docrx_db_v1') || '';
   let storageMB  = ((storageRaw.length * 0.75) / 1024 / 1024).toFixed(2);
@@ -59,6 +60,7 @@ export function renderSettings(container) {
             { id: 'clinic',   label: 'Clinic Info' },
             { id: 'security', label: 'Security' },
             { id: 'backup',   label: 'Backup & Restore' },
+            { id: 'portal',   label: 'Lab Portal' },
             { id: 'storage',  label: 'Storage' },
           ].map(tab => `
             <button class="btn ${activeTab === tab.id ? 'btn-primary' : 'btn-ghost'} btn-sm" style="flex-shrink:0"
@@ -250,12 +252,81 @@ export function renderSettings(container) {
         </div>
       </div>
 
+      <!-- Lab Portal Tab -->
+      <div id="panel-portal" class="${activeTab !== 'portal' ? 'hidden' : ''}">
+        ${!getSavedToken() ? `
+        <div class="alert alert-warning mb-4">
+          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <div>
+            <strong>Google Drive Sync is Disconnected!</strong><br/>
+            DocRx requires Google Drive to be connected under the <strong>Backup & Restore</strong> tab in order to poll and download incoming lab reports.
+          </div>
+        </div>
+        ` : ''}
+
+        <div class="card card-p mb-4">
+          <div class="section-title mb-2">Configure Diagnostic Lab Portal</div>
+          <p class="text-sm text-muted mb-4" style="line-height:1.6">
+            Enter your Google Apps Script Web App URL below. External diagnostic labs will use this URL to upload PDF reports directly into your secure Google Drive.
+          </p>
+          <div class="form-group mb-4">
+            <label class="form-label">Apps Script Web App URL</label>
+            <div class="flex gap-2">
+              <input type="text" class="input" id="portal-url" placeholder="https://script.google.com/macros/s/.../exec" value="${portalUrl}" style="flex:1" />
+              <button class="btn btn-primary" id="save-portal-url-btn">Save URL</button>
+            </div>
+          </div>
+
+          ${portalUrl ? `
+          <div class="print-footer-divider" style="margin: 16px 0;"></div>
+          <div class="section-title mb-2" style="font-size:0.95rem">Shareable Portal Link</div>
+          <p class="text-xs text-muted mb-3">Copy this link or share it directly with your diagnostic lab partners via WhatsApp.</p>
+          <div class="flex gap-2 items-center">
+            <input type="text" class="input" id="share-portal-url" value="${portalUrl}" readonly style="flex:1; background:var(--glass-bg); font-family:monospace; font-size:0.85rem;" />
+            <button class="btn btn-secondary btn-sm" id="copy-share-btn">Copy</button>
+            <button class="btn btn-primary btn-sm" id="share-wa-btn">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+              Share Link
+            </button>
+          </div>
+          ` : ''}
+        </div>
+
+        <div class="card card-p">
+          <div class="section-title mb-4">Step-by-Step Setup Guide</div>
+          <ol class="text-sm text-muted" style="padding-left: 20px; display:flex; flex-direction:column; gap:16px;">
+            <li>Open <a href="https://script.google.com" target="_blank" style="color:var(--teal-400); text-decoration:underline;">Google Apps Script</a> and click <strong>New Project</strong>.</li>
+            <li>Rename the project to <code>DocRx Lab Portal</code>.</li>
+            <li>
+              Replace all contents of <strong>Code.gs</strong> with the code below:
+              <div class="mt-2" style="position:relative;">
+                <button class="btn btn-ghost btn-sm" id="copy-code-btn" style="position:absolute; right:8px; top:8px; background:rgba(255,255,255,0.05); font-size:0.75rem;">Copy Code</button>
+                <pre id="code-gs-text" style="background:#0f172a; color:#f8fafc; padding:16px; border-radius:8px; font-family:monospace; font-size:0.8rem; overflow-x:auto; max-height:220px; border:1px solid rgba(255,255,255,0.08);">${e(GS_CODE)}</pre>
+              </div>
+            </li>
+            <li>Click the <strong>+</strong> icon next to Files, select <strong>HTML</strong>, and name it exactly <code>Upload</code>.</li>
+            <li>
+              Replace all contents of <strong>Upload.html</strong> with the code below:
+              <div class="mt-2" style="position:relative;">
+                <button class="btn btn-ghost btn-sm" id="copy-html-btn" style="position:absolute; right:8px; top:8px; background:rgba(255,255,255,0.05); font-size:0.75rem;">Copy HTML</button>
+                <pre id="upload-html-text" style="background:#0f172a; color:#f8fafc; padding:16px; border-radius:8px; font-family:monospace; font-size:0.8rem; overflow-x:auto; max-height:220px; border:1px solid rgba(255,255,255,0.08);">${e(HTML_CODE)}</pre>
+              </div>
+            </li>
+            <li>Click <strong>Deploy</strong> (top right) -> <strong>New deployment</strong>.</li>
+            <li>Click the gear icon next to "Select type", choose <strong>Web app</strong>, and enter a description (e.g. <code>DocRx Lab Upload Portal</code>).</li>
+            <li>Ensure <strong>Execute as:</strong> is set to <strong>Me (your-email@gmail.com)</strong>.</li>
+            <li>Ensure <strong>Who has access:</strong> is set to <strong>Anyone</strong>.</li>
+            <li>Click <strong>Deploy</strong>, authorize the permissions, copy the <strong>Web app URL</strong>, and paste it into the field at the top of this tab!</li>
+          </ol>
+        </div>
+      </div>
+
     </div>
   `;
 
   // Tab switching
   window.__switchTab = (tabId) => {
-    ['clinic','security','backup','storage'].forEach(t => {
+    ['clinic','security','backup','portal','storage'].forEach(t => {
       container.querySelector(`#panel-${t}`)?.classList.toggle('hidden', t !== tabId);
       const btn = container.querySelector(`#tab-${t}`);
       if (btn) btn.className = `btn ${t === tabId ? 'btn-primary' : 'btn-ghost'} btn-sm`;
@@ -409,6 +480,386 @@ export function renderSettings(container) {
       container.querySelector('#restore-status').textContent = '';
     }
   });
+
+  // Save Portal URL
+  container.querySelector('#save-portal-url-btn')?.addEventListener('click', () => {
+    const val = container.querySelector('#portal-url')?.value?.trim() || '';
+    localStorage.setItem('docrx_portal_url', val);
+    toast.success('Lab Portal URL saved.');
+    navigate('/settings?tab=portal');
+  });
+
+  // Copy share URL
+  container.querySelector('#copy-share-btn')?.addEventListener('click', () => {
+    const el = container.querySelector('#share-portal-url');
+    if (el) {
+      el.select();
+      document.execCommand('copy');
+      toast.success('Link copied to clipboard!');
+    }
+  });
+
+  // Share via WhatsApp
+  container.querySelector('#share-wa-btn')?.addEventListener('click', () => {
+    const url = localStorage.getItem('docrx_portal_url') || '';
+    if (!url) return;
+    const msg = `Dear Partner, please use this link to upload patient lab reports directly into our system: ${url}`;
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+  });
+
+  // Copy code blocks
+  container.querySelector('#copy-code-btn')?.addEventListener('click', () => {
+    const code = container.querySelector('#code-gs-text')?.textContent || '';
+    navigator.clipboard.writeText(code).then(() => {
+      toast.success('Code.gs copied!');
+    });
+  });
+
+  container.querySelector('#copy-html-btn')?.addEventListener('click', () => {
+    const htmlCode = container.querySelector('#upload-html-text')?.textContent || '';
+    navigator.clipboard.writeText(htmlCode).then(() => {
+      toast.success('Upload.html copied!');
+    });
+  });
 }
 
 function e(val) { return val != null ? String(val).replace(/"/g, '&quot;').replace(/</g, '&lt;') : ''; }
+
+const GS_CODE = `function doGet(e) {
+  return HtmlService.createTemplateFromFile('Upload')
+      .evaluate()
+      .setTitle('DocRx Lab Report Portal')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+function uploadReport(base64Data, fileName, patientCode, phone) {
+  try {
+    patientCode = patientCode.toUpperCase().trim();
+    phone = phone.replace(/[\\s\\-\\(\\)]/g, '').trim();
+    
+    if (!patientCode || !phone) {
+      return { success: false, error: 'Patient Code and Phone Number are required.' };
+    }
+    
+    var timestamp = new Date().getTime();
+    var driveFileName = 'incoming_report_' + patientCode + '_' + phone + '_' + timestamp + '.pdf';
+    var mediaBody = Utilities.base64Decode(base64Data);
+    
+    var metadata = {
+      name: driveFileName,
+      parents: ['appDataFolder']
+    };
+    
+    var token = ScriptApp.getOAuthToken();
+    
+    // Step 1: Create metadata in appDataFolder
+    var createResponse = UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { Authorization: 'Bearer ' + token },
+      payload: JSON.stringify(metadata),
+      muteHttpExceptions: true
+    });
+    
+    if (createResponse.getResponseCode() !== 200) {
+      throw new Error("Metadata creation failed: " + createResponse.getContentText());
+    }
+    
+    var fileInfo = JSON.parse(createResponse.getContentText());
+    var fileId = fileInfo.id;
+    
+    // Step 2: Upload actual PDF content
+    var uploadResponse = UrlFetchApp.fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', {
+      method: 'patch',
+      contentType: 'application/pdf',
+      headers: { Authorization: 'Bearer ' + token },
+      payload: mediaBody,
+      muteHttpExceptions: true
+    });
+    
+    if (uploadResponse.getResponseCode() !== 200) {
+      throw new Error("Content upload failed: " + uploadResponse.getContentText());
+    }
+    
+    return { success: true, fileId: fileId };
+  } catch (error) {
+    return { success: false, error: error.toString() };
+  }
+}`;
+
+const HTML_CODE = `<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%);
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --primary: #06b6d4;
+      --primary-hover: #0891b2;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 480px;
+      padding: 40px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+    .header { text-align: center; margin-bottom: 32px; }
+    .logo { font-size: 28px; font-weight: 700; background: linear-gradient(to right, #22d3ee, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; }
+    .subtitle { color: var(--text-muted); font-size: 14px; }
+    .form-group { margin-bottom: 20px; }
+    .label { display: block; font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 8px; }
+    .input {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 15px;
+      outline: none;
+      transition: all 0.3s;
+    }
+    .input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.2); }
+    .dropzone {
+      border: 2px dashed rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 30px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      background: rgba(15, 23, 42, 0.3);
+    }
+    .dropzone:hover, .dropzone.dragover { border-color: var(--primary); background: rgba(6, 182, 212, 0.05); }
+    .dropzone-icon { font-size: 32px; margin-bottom: 12px; color: var(--primary); }
+    .dropzone-text { font-size: 14px; margin-bottom: 4px; }
+    .dropzone-subtext { font-size: 12px; color: var(--text-muted); }
+    .file-preview { display: flex; align-items: center; gap: 12px; background: rgba(15, 23, 42, 0.8); padding: 12px; border-radius: 10px; margin-top: 12px; }
+    .file-icon { font-size: 24px; color: #ef4444; }
+    .file-info { flex: 1; min-width: 0; }
+    .file-name { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-size { font-size: 12px; color: var(--text-muted); }
+    .btn {
+      width: 100%;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 10px;
+    }
+    .btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { background: rgba(255, 255, 255, 0.1); color: var(--text-muted); cursor: not-allowed; }
+    .error { color: #f87171; font-size: 13px; margin-top: 6px; }
+    
+    .loading-state, .success-state { display: none; text-align: center; }
+    .spinner { border: 4px solid rgba(255,255,255,0.1); border-top-color: var(--primary); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 20px auto; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    .progress-text { font-size: 16px; font-weight: 500; margin-bottom: 8px; }
+    .checkmark { width: 80px; height: 80px; border-radius: 50%; display: block; stroke-width: 2; stroke: #10b981; stroke-miterlimit: 10; margin: 10% auto; box-shadow: inset 0px 0px 0px #10b981; animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s forwards; }
+    .checkmark__circle { stroke-dasharray: 166; stroke-dashoffset: 166; stroke-width: 2; stroke-miterlimit: 10; stroke: #10b981; fill: none; animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards; }
+    .checkmark__check { transform-origin: 50% 50%; stroke-dasharray: 48; stroke-dashoffset: 48; animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.6s forwards; }
+    @keyframes stroke { 100% { stroke-dashoffset: 0; } }
+    @keyframes scale { 0%, 100% { transform: none; } 50% { transform: scale3d(1.1, 1.1, 1); } }
+    @keyframes fill { 100% { box-shadow: inset 0px 0px 0px 40px rgba(16, 185, 129, 0.1); } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div id="form-container">
+      <div class="header">
+        <div class="logo">DocRx</div>
+        <div class="subtitle">Diagnostic Lab Portal</div>
+      </div>
+      <form id="upload-form">
+        <div class="form-group">
+          <label class="label">Patient Code / ID</label>
+          <input type="text" id="patientCode" class="input" placeholder="e.g. PAT-1001" required autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="label">Registered Phone Number</label>
+          <input type="tel" id="phone" class="input" placeholder="e.g. 9876543210" required autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="label">PDF Report</label>
+          <div id="dropzone" class="dropzone">
+            <div class="dropzone-icon">📄</div>
+            <div class="dropzone-text">Click to choose or drag PDF here</div>
+            <div class="dropzone-subtext">PDF only, max size 15MB</div>
+            <input type="file" id="fileInput" accept=".pdf" style="display: none">
+          </div>
+          <div id="file-preview" style="display: none">
+            <div class="file-preview">
+              <div class="file-icon">📕</div>
+              <div class="file-info">
+                <div class="file-name" id="preview-name"></div>
+                <div class="file-size" id="preview-size"></div>
+              </div>
+            </div>
+          </div>
+          <div id="file-error" class="error"></div>
+        </div>
+        <div id="error-message" class="error" style="text-align: center; margin-bottom: 12px;"></div>
+        <button type="submit" id="submitBtn" class="btn" disabled>Upload Lab Report</button>
+      </form>
+    </div>
+    
+    <div id="loading-container" class="loading-state">
+      <div class="spinner"></div>
+      <div class="progress-text">Uploading to secure vault...</div>
+      <div class="subtitle">Please do not close this window.</div>
+    </div>
+    
+    <div id="success-container" class="success-state">
+      <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+        <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+        <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+      </svg>
+      <div class="logo" style="background: #10b981; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Upload Complete!</div>
+      <div class="subtitle" style="margin-top: 8px;">The report has been securely saved. It will sync automatically to the doctor's system.</div>
+      <button onclick="resetForm()" class="btn" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text); margin-top: 30px;">Upload Another File</button>
+    </div>
+  </div>
+
+  <script>
+    const formContainer = document.getElementById('form-container');
+    const loadingContainer = document.getElementById('loading-container');
+    const successContainer = document.getElementById('success-container');
+    
+    const form = document.getElementById('upload-form');
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const filePreview = document.getElementById('file-preview');
+    const previewName = document.getElementById('preview-name');
+    const previewSize = document.getElementById('preview-size');
+    const fileError = document.getElementById('file-error');
+    const errorMessage = document.getElementById('error-message');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    let selectedFile = null;
+    
+    dropzone.addEventListener('click', () => fileInput.click());
+    
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+    
+    dropzone.addEventListener('dragleave', () => {
+      dropzone.classList.remove('dragover');
+    });
+    
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) {
+        handleFile(e.dataTransfer.files[0]);
+      }
+    });
+    
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length) {
+        handleFile(e.target.files[0]);
+      }
+    });
+    
+    function handleFile(file) {
+      fileError.textContent = '';
+      if (file.type !== 'application/pdf') {
+        fileError.textContent = 'Only PDF documents are allowed.';
+        selectedFile = null;
+        filePreview.style.display = 'none';
+        submitBtn.disabled = true;
+        return;
+      }
+      if (file.size > 15 * 1024 * 1024) {
+        fileError.textContent = 'Maximum file size is 15MB.';
+        selectedFile = null;
+        filePreview.style.display = 'none';
+        submitBtn.disabled = true;
+        return;
+      }
+      
+      selectedFile = file;
+      previewName.textContent = file.name;
+      previewSize.textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+      filePreview.style.display = 'block';
+      submitBtn.disabled = false;
+    }
+    
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!selectedFile) return;
+      
+      const patientCode = document.getElementById('patientCode').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      errorMessage.textContent = '';
+      
+      formContainer.style.display = 'none';
+      loadingContainer.style.display = 'block';
+      
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const base64Data = evt.target.result.split(',')[1];
+        google.script.run
+          .withSuccessHandler((response) => {
+            if (response && response.success) {
+              loadingContainer.style.display = 'none';
+              successContainer.style.display = 'block';
+            } else {
+              showError(response ? response.error : 'Unknown upload error');
+            }
+          })
+          .withFailureHandler((err) => {
+            showError(err.toString());
+          })
+          .uploadReport(base64Data, selectedFile.name, patientCode, phone);
+      };
+      reader.readAsDataURL(selectedFile);
+    });
+    
+    function showError(msg) {
+      loadingContainer.style.display = 'none';
+      formContainer.style.display = 'block';
+      errorMessage.textContent = 'Upload failed: ' + msg;
+    }
+    
+    function resetForm() {
+      form.reset();
+      selectedFile = null;
+      filePreview.style.display = 'none';
+      submitBtn.disabled = true;
+      successContainer.style.display = 'none';
+      formContainer.style.display = 'block';
+      errorMessage.textContent = '';
+    }
+  </script>
+</body>
+</html>`;
