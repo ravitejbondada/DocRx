@@ -4,6 +4,8 @@
 import { queryAll, queryOne } from '../db/index.js';
 import { navigate } from '../router.js';
 
+let dashboardChartInstance = null;
+
 export function renderDashboard(container) {
   const today = new Date().toISOString().slice(0, 10);
   const thisMonthStart = today.slice(0, 7) + '-01';
@@ -158,6 +160,20 @@ export function renderDashboard(container) {
       <div class="dashboard-main-grid">
         <!-- Left: Recent Patients -->
         <div>
+          <!-- Mobile Analytics Card -->
+          <div class="hide-on-desktop card card-p mb-6" style="padding: 16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+              <span class="section-title" style="margin-bottom:0; font-size:0.95rem; font-weight:700;">Visit Volume Trend</span>
+              <div class="segmented-control-sm">
+                <button class="segmented-btn-sm active" id="btn-vol-week">Week</button>
+                <button class="segmented-btn-sm" id="btn-vol-month">Month</button>
+              </div>
+            </div>
+            <div style="height: 180px; position: relative; width: 100%;">
+              <canvas id="dashboard-volume-chart"></canvas>
+            </div>
+          </div>
+
           <div class="section-header">
             <div class="section-title">Recent Patients</div>
             <button class="btn btn-ghost btn-sm" onclick="window.__navigate('/patients')">View All →</button>
@@ -249,6 +265,163 @@ export function renderDashboard(container) {
       </div>
     </div>
   `;
+
+  // Chart rendering and Toggle hooks
+  let currentView = 'week'; // 'week' or 'month'
+  
+  function updateChart() {
+    const isLight = document.documentElement.classList.contains('light-theme');
+    const labelColor = isLight ? '#475569' : '#94a3b8';
+    const gridColor = isLight ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.05)';
+    const borderColor = isLight ? '#0891b2' : '#22d3ee';
+    const bgColor = isLight ? 'rgba(8, 145, 178, 0.08)' : 'rgba(34, 211, 238, 0.08)';
+
+    const days = currentView === 'week' ? 7 : 30;
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days + 1);
+    const cutoffStr = cutoffDate.toISOString().slice(0, 10);
+
+    // Query data
+    const data = queryAll(
+      `SELECT visit_date, COUNT(*) as count FROM visits 
+       WHERE deleted=0 AND visit_date >= ? 
+       GROUP BY visit_date ORDER BY visit_date ASC`,
+      [cutoffStr]
+    );
+
+    // Generate complete list of dates so the chart doesn't look empty/gappy if days are missed
+    const dateMap = {};
+    for (let i = 0; i < days; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateKey = d.toISOString().slice(0, 10);
+      dateMap[dateKey] = 0;
+    }
+    data.forEach(row => {
+      if (dateMap[row.visit_date] !== undefined) {
+        dateMap[row.visit_date] = row.count;
+      }
+    });
+
+    const sortedDates = Object.keys(dateMap).sort();
+    const chartLabels = sortedDates.map(d => {
+      const dt = new Date(d + 'T00:00:00');
+      return dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    });
+    const chartData = sortedDates.map(d => dateMap[d]);
+
+    if (dashboardChartInstance) {
+      dashboardChartInstance.destroy();
+      dashboardChartInstance = null;
+    }
+
+    const canvas = document.getElementById('dashboard-volume-chart');
+    if (!canvas) return;
+
+    if (typeof Chart === 'undefined') {
+      console.warn('Chart.js not loaded yet');
+      return;
+    }
+
+    const ctx = canvas.getContext('2d');
+    dashboardChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: chartLabels,
+        datasets: [{
+          label: 'Visits',
+          data: chartData,
+          borderColor: borderColor,
+          backgroundColor: bgColor,
+          borderWidth: 2.5,
+          tension: 0.35,
+          fill: true,
+          pointRadius: currentView === 'week' ? 3 : 0,
+          pointHitRadius: 10,
+          pointHoverRadius: 5,
+          pointBackgroundColor: borderColor
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            backgroundColor: isLight ? '#ffffff' : '#1e293b',
+            titleColor: isLight ? '#0f172a' : '#f1f5f9',
+            bodyColor: isLight ? '#475569' : '#94a3b8',
+            borderColor: isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)',
+            borderWidth: 1,
+            padding: 10,
+            displayColors: false
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: {
+              color: labelColor,
+              font: { size: 10 },
+              maxTicksLimit: currentView === 'week' ? 7 : 6,
+              autoSkip: true
+            }
+          },
+          y: {
+            grid: { color: gridColor },
+            ticks: {
+              color: labelColor,
+              font: { size: 10 },
+              stepSize: 1,
+              precision: 0
+            },
+            min: 0
+          }
+        }
+      }
+    });
+  }
+
+  // Set up event listeners for toggle
+  setTimeout(() => {
+    const btnWeek = container.querySelector('#btn-vol-week');
+    const btnMonth = container.querySelector('#btn-vol-month');
+
+    if (btnWeek && btnMonth) {
+      btnWeek.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (currentView === 'week') return;
+        currentView = 'week';
+        btnMonth.classList.remove('active');
+        btnWeek.classList.add('active');
+        updateChart();
+      });
+
+      btnMonth.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (currentView === 'month') return;
+        currentView = 'month';
+        btnWeek.classList.remove('active');
+        btnMonth.classList.add('active');
+        updateChart();
+      });
+    }
+
+    // Initial chart load
+    updateChart();
+  }, 50);
+
+  // Leak-proof theme listener
+  const themeListener = () => {
+    if (!document.getElementById('dashboard-volume-chart')) {
+      window.removeEventListener('docrx-theme-changed', themeListener);
+      return;
+    }
+    updateChart();
+  };
+  window.addEventListener('docrx-theme-changed', themeListener);
 }
 
 function getInitials(name) {

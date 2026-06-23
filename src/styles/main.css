@@ -160,6 +160,26 @@
   --teal-300: #0e7490;
 }
 
+/* ── Light Theme Mobile Overrides ─────────────────────────────── */
+.light-theme .mobile-top-bar {
+  background: rgba(255, 255, 255, 0.8) !important;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04) !important;
+}
+.light-theme .bottom-nav {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border-top: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.05) !important;
+}
+.light-theme .bottom-nav-item.active {
+  color: var(--teal-600) !important;
+  text-shadow: none !important;
+}
+.light-theme .bottom-nav-item.active svg {
+  filter: none !important;
+}
+
+
 /* ── Reset ──────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -361,6 +381,40 @@ a:hover { color: var(--teal-300); }
   border: 1px solid var(--glass-border);
 }
 .light-theme .theme-segmented-btn.active {
+  background: var(--surface-1);
+  color: var(--teal-600);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Small segmented control (e.g. for mobile analytics week/month toggle) */
+.segmented-control-sm {
+  display: flex;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+.segmented-btn-sm {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+  border-radius: calc(var(--radius-sm) - 1px);
+  transition: all var(--t-fast) var(--ease-out);
+}
+.segmented-btn-sm:hover {
+  color: var(--text-primary);
+}
+.segmented-btn-sm.active {
+  background: var(--surface-2);
+  color: var(--teal-400);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--glass-border);
+}
+.light-theme .segmented-btn-sm.active {
   background: var(--surface-1);
   color: var(--teal-600);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
