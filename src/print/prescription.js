@@ -107,7 +107,7 @@ export async function _executePrint(visitId, pharmacyId = null, diagCenterId = n
     
     .print-page {
       width: 210mm;
-      height: 296mm;
+      height: 282mm;
       background: #ffffff;
       color: #0f172a;
       padding: 15mm;
