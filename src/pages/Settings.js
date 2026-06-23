@@ -298,7 +298,19 @@ export function renderSettings(container) {
             <li>Open <a href="https://script.google.com" target="_blank" style="color:var(--teal-400); text-decoration:underline;">Google Apps Script</a> and click <strong>New Project</strong>.</li>
             <li>Rename the project to <code>DocRx Lab Portal</code>.</li>
             <li>
-              Replace all contents of <strong>Code.gs</strong> with the code below:
+              Enable and edit the <strong>appsscript.json</strong> manifest file:
+              <ul style="padding-left: 20px; margin-top: 8px; list-style-type: disc; display:flex; flex-direction:column; gap:6px;">
+                <li>Click the gear icon (<strong>Project Settings</strong>) on the left sidebar.</li>
+                <li>Check the box for <strong>"Show 'appsscript.json' manifest file in editor"</strong>.</li>
+                <li>Go back to the editor (pencil icon on the left), select <strong>appsscript.json</strong> in the file list, and replace its entire contents with the configuration below:</li>
+              </ul>
+              <div class="mt-2" style="position:relative;">
+                <button class="btn btn-ghost btn-sm" id="copy-manifest-btn" style="position:absolute; right:8px; top:8px; background:rgba(255,255,255,0.05); font-size:0.75rem;">Copy Manifest</button>
+                <pre id="manifest-json-text" style="background:#0f172a; color:#f8fafc; padding:16px; border-radius:8px; font-family:monospace; font-size:0.8rem; overflow-x:auto; max-height:220px; border:1px solid rgba(255,255,255,0.08);">${e(MANIFEST_CODE)}</pre>
+              </div>
+            </li>
+            <li>
+              Select <strong>Code.gs</strong> in the file list and replace all its contents with the code below:
               <div class="mt-2" style="position:relative;">
                 <button class="btn btn-ghost btn-sm" id="copy-code-btn" style="position:absolute; right:8px; top:8px; background:rgba(255,255,255,0.05); font-size:0.75rem;">Copy Code</button>
                 <pre id="code-gs-text" style="background:#0f172a; color:#f8fafc; padding:16px; border-radius:8px; font-family:monospace; font-size:0.8rem; overflow-x:auto; max-height:220px; border:1px solid rgba(255,255,255,0.08);">${e(GS_CODE)}</pre>
@@ -508,6 +520,13 @@ export function renderSettings(container) {
   });
 
   // Copy code blocks
+  container.querySelector('#copy-manifest-btn')?.addEventListener('click', () => {
+    const manifest = container.querySelector('#manifest-json-text')?.textContent || '';
+    navigator.clipboard.writeText(manifest).then(() => {
+      toast.success('appsscript.json copied!');
+    });
+  });
+
   container.querySelector('#copy-code-btn')?.addEventListener('click', () => {
     const code = container.querySelector('#code-gs-text')?.textContent || '';
     navigator.clipboard.writeText(code).then(() => {
@@ -525,11 +544,22 @@ export function renderSettings(container) {
 
 function e(val) { return val != null ? String(val).replace(/"/g, '&quot;').replace(/</g, '&lt;') : ''; }
 
+const MANIFEST_CODE = `{
+  "timeZone": "Asia/Kolkata",
+  "dependencies": {},
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "webapp": {
+    "executeAs": "USER_DEPLOYING",
+    "access": "ANYONE"
+  },
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/drive.appdata",
+    "https://www.googleapis.com/auth/script.external_request"
+  ]
+}`;
+
 const GS_CODE = `function doGet(e) {
-  // Dummy reference to trigger Drive API scope authorization in Apps Script
-  if (false) {
-    DriveApp.getRootFolder();
-  }
   return HtmlService.createTemplateFromFile('Upload')
       .evaluate()
       .setTitle('DocRx Lab Report Portal')
