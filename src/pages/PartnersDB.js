@@ -206,7 +206,12 @@ export function renderPartnersDB(container) {
   }
 
   function deletePartner(table, id) {
-    if (!confirm('Are you sure you want to delete this partner?')) return;
+    const pwd = prompt("Enter Admin Password to delete partner data (Hint: 4 cont keys):");
+    if (pwd !== 'rtyu') {
+      alert("Incorrect Admin Password. Deletion cancelled.");
+      return;
+    }
+    if (!confirm('Are you sure you want to delete this partner? (Note: 4 cont keys)')) return;
     run(`UPDATE ${table} SET deleted=1, deleted_at=datetime('now','localtime'), updated_at=datetime('now','localtime') WHERE id=?`, [id]);
     loadData();
   }

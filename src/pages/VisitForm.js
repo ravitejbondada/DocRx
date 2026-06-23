@@ -263,7 +263,7 @@ export function renderVisitForm(container, params) {
               </button>
               <button type="button" class="btn btn-secondary btn-lg" onclick="window.__navigate('/patients/${patientId}')">Cancel</button>
               ${isEdit ? `
-              <button type="button" class="btn btn-lg" style="background:#ef4444;color:white;margin-left:auto" onclick="window.__deleteVisit(${visitId}, ${patientId})">
+              <button type="button" class="btn btn-lg" style="background:#ef4444;color:white;margin-left:auto" onclick="window.__deleteVisit('${visitId}', '${patientId}')">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
               </button>
               ` : ''}
@@ -362,7 +362,12 @@ export function renderVisitForm(container, params) {
   };
 
   window.__deleteVisit = async (vId, pId) => {
-    if (!confirm('Are you sure you want to delete this visit completely? This cannot be undone.')) return;
+    const pwd = prompt("Enter Admin Password to delete visit data (Hint: 4 cont keys):");
+    if (pwd !== 'rtyu') {
+      alert("Incorrect Admin Password. Deletion cancelled.");
+      return;
+    }
+    if (!confirm('Are you sure you want to delete this visit completely? This cannot be undone. (Note: 4 cont keys)')) return;
     const { run } = await import('../db/index.js');
     const now = new Date().toISOString();
     run('UPDATE visits SET deleted=1, deleted_at=?, updated_at=? WHERE id=?', [now, now, vId]);

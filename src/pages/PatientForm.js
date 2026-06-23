@@ -170,7 +170,12 @@ export function renderPatientForm(container, params = {}) {
 
   // --- Delete Patient ---
   window.__deletePatient = async (pId) => {
-    if (!confirm('WARNING: Are you sure you want to completely delete this patient and ALL their visits, prescriptions, tests, and financial data? This CANNOT be undone!')) return;
+    const pwd = prompt("Enter Admin Password to delete patient data (Hint: 4 cont keys):");
+    if (pwd !== 'rtyu') {
+      alert("Incorrect Admin Password. Deletion cancelled.");
+      return;
+    }
+    if (!confirm('WARNING: Are you sure you want to completely delete this patient and ALL their visits, prescriptions, tests, and financial data? This CANNOT be undone! (Note: 4 cont keys)')) return;
     const { run } = await import('../db/index.js');
     const now = new Date().toISOString();
     run('UPDATE prescriptions SET deleted=1, deleted_at=?, updated_at=? WHERE visit_id IN (SELECT id FROM visits WHERE patient_id=?)', [now, now, pId]);
