@@ -107,7 +107,7 @@ export async function _executePrint(visitId, pharmacyId = null, diagCenterId = n
     
     .print-page {
       width: 210mm;
-      min-height: 280mm;
+      height: 296mm;
       background: #ffffff;
       color: #0f172a;
       padding: 15mm;
@@ -264,7 +264,8 @@ export async function _executePrint(visitId, pharmacyId = null, diagCenterId = n
         filename: `Prescription_${patient.patient_code}_${formatDate(visit.visit_date).replace(/ /g, '_')}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'] }
       };
 
       if (isWhatsApp) {
