@@ -624,10 +624,10 @@ function getPendingTestsQueue() {
       muteHttpExceptions: true
     });
     
-    if (findResponse.getResponseCode() !== 200) return [];
+    if (findResponse.getResponseCode() !== 200) return { queue: [] };
     var findInfo = JSON.parse(findResponse.getContentText());
     var files = findInfo.files;
-    if (!files || !files.length) return [];
+    if (!files || !files.length) return { queue: [] };
     
     var downloadUrl = 'https://www.googleapis.com/drive/v3/files/' + files[0].id + '?alt=media';
     var downloadResponse = UrlFetchApp.fetch(downloadUrl, {
@@ -636,10 +636,79 @@ function getPendingTestsQueue() {
       muteHttpExceptions: true
     });
     
-    if (downloadResponse.getResponseCode() !== 200) return [];
-    return JSON.parse(downloadResponse.getContentText());
+    if (downloadResponse.getResponseCode() !== 200) return { queue: [] };
+    var payload = JSON.parse(downloadResponse.getContentText());
+    var queue = Array.isArray(payload) ? payload : (payload.queue || []);
+    
+    // Find any reports currently sitting in the appDataFolder (already uploaded but not yet synced/deleted by doctor's app)
+    var reportsUrl = 'https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%20contains%20%27incoming_report_%27%20and%20trashed=false&fields=files(name)';
+    var reportsResponse = UrlFetchApp.fetch(reportsUrl, {
+      method: 'get',
+      headers: { Authorization: 'Bearer ' + token },
+      muteHttpExceptions: true
+    });
+    
+    var uploadedMap = {};
+    if (reportsResponse.getResponseCode() === 200) {
+      var reportsInfo = JSON.parse(reportsResponse.getContentText());
+      var reportFiles = reportsInfo.files || [];
+      for (var r = 0; r < reportFiles.length; r++) {
+        var name = reportFiles[r].name;
+        var nameWithoutExt = name.substring(0, name.length - 4);
+        var parts = nameWithoutExt.split('_');
+        if (parts.length >= 6) {
+          var fVisitId = parts[4];
+          var fTestIdsStr = parts[5];
+          if (!uploadedMap[fVisitId]) {
+            uploadedMap[fVisitId] = [];
+          }
+          if (fTestIdsStr === 'all') {
+            uploadedMap[fVisitId].push('all');
+          } else {
+            var splitIds = fTestIdsStr.split('+');
+            for (var s = 0; s < splitIds.length; s++) {
+              if (splitIds[s]) {
+                uploadedMap[fVisitId].push(splitIds[s]);
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Filter queue to hide tests that have already been uploaded as reports
+    var filteredQueue = [];
+    for (var i = 0; i < queue.length; i++) {
+      var item = queue[i];
+      var fVisitId = item.visitId;
+      var uploadedList = uploadedMap[fVisitId] || [];
+      
+      if (uploadedList.indexOf('all') !== -1) {
+        continue;
+      }
+      
+      var filteredTests = [];
+      for (var j = 0; j < item.tests.length; j++) {
+        var test = item.tests[j];
+        if (test.uploaded !== 1 && uploadedList.indexOf(test.id) === -1) {
+          filteredTests.push(test);
+        }
+      }
+      
+      if (filteredTests.length > 0) {
+        item.tests = filteredTests;
+        filteredQueue.push(item);
+      }
+    }
+    
+    if (Array.isArray(payload)) {
+      return filteredQueue;
+    } else {
+      payload.queue = filteredQueue;
+      return payload;
+    }
   } catch (error) {
-    return [];
+    return { queue: [] };
   }
 }
 
