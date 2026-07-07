@@ -5,7 +5,8 @@ import { hashPassword, generateSalt, setSession } from '../auth/crypto.js';
 import { run, queryOne, importDBBinary } from '../db/index.js';
 import { navigate, getParams } from '../router.js';
 import { toast } from '../components/Toast.js';
-import { initAuth, findBackupFile, downloadBackupFile } from '../backup/drive.js';
+import { initAuth, findBackupFile, downloadBackupFile, getSavedToken } from '../backup/drive.js';
+import { MANIFEST_CODE, GS_CODE, HTML_CODE } from './Settings.js';
 
 export async function renderSetup(container) {
   const params = getParams();
@@ -141,6 +142,8 @@ export async function renderSetup(container) {
   let diagAddr = '';
   let diagPhone = '';
   let portalUrl = '';
+  let googleClientId = (existing && existing.google_client_id) || '219866394954-pg9187uvcq3gu0c4l51728m1u1hojt0c.apps.googleusercontent.com';
+  let googleConnected = !!getSavedToken();
 
   if (existing) {
     docFirst = existing.doctor_first_name || '';
@@ -158,6 +161,7 @@ export async function renderSetup(container) {
       'Practice Information',
       'Security Settings',
       'Preferred Partners',
+      'Google Drive Sync',
       'Lab Portal Setup',
       'Setup Summary'
     ];
@@ -183,11 +187,11 @@ export async function renderSetup(container) {
           <!-- Progress Bar -->
           <div style="margin-bottom: 24px;">
             <div style="display:flex; justify-content:space-between; font-size: 0.75rem; color: var(--text-tertiary); margin-bottom: 4px;">
-              <span>Step ${currentStep} of 5: ${getStepTitle(currentStep)}</span>
-              <span>${Math.round((currentStep / 5) * 100)}%</span>
+              <span>Step ${currentStep} of 6: ${getStepTitle(currentStep)}</span>
+              <span>${Math.round((currentStep / 6) * 100)}%</span>
             </div>
             <div class="storage-bar-wrap" style="height: 6px;">
-              <div class="storage-bar" style="width: ${(currentStep / 5) * 100}%; background: linear-gradient(90deg, var(--sky-500), var(--teal-600));"></div>
+              <div class="storage-bar" style="width: ${(currentStep / 6) * 100}%; background: linear-gradient(90deg, var(--sky-500), var(--teal-600));"></div>
             </div>
           </div>
 
@@ -501,45 +505,170 @@ export async function renderSetup(container) {
       });
 
     } else if (currentStep === 4) {
-      // Step 4: Configure Lab Portal
+      // Step 4: Google Drive Sync Connection
       stepContainer.innerHTML = `
-        <h2 style="font-size:1.2rem;margin-bottom:8px;font-weight:700">Lab Portal Integration</h2>
-        <p class="text-xs text-muted mb-4">Set up a secure portal for diagnostic labs to upload patient reports directly to your Drive.</p>
+        <h2 style="font-size:1.2rem;margin-bottom:8px;font-weight:700">Google Drive Backup & Sync</h2>
+        <p class="text-xs text-muted mb-4">
+          Connect your personal Google Drive to enable real-time cloud backup, multi-device synchronization, and diagnostic lab portal integrations.
+        </p>
 
-        <div style="background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius-lg);padding:16px;margin-bottom:20px; font-size:0.85rem; line-height:1.5;">
-          <p class="font-bold mb-2">Google Apps Script Deployment Steps:</p>
-          <ol style="padding-left:16px; display:flex; flex-direction:column; gap:8px;">
-            <li>Go to <a href="https://script.google.com" target="_blank" style="color:var(--sky-400); text-decoration:underline;">script.google.com</a>.</li>
-            <li>Create a project, deploy it as a <strong>Web App</strong>.</li>
-            <li>Configure: Execute as: <strong>Me</strong>, Access: <strong>Anyone</strong>.</li>
-            <li>Copy the Web App URL and paste it below. (Code templates are available inside Settings later).</li>
-          </ol>
-        </div>
+        <div style="background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius-lg);padding:16px;margin-bottom:20px">
+          <div class="form-group mb-4">
+            <label class="form-label">Google OAuth Client ID</label>
+            <input type="text" class="input" id="wizard-client-id" placeholder="Paste your Google OAuth Client ID..." value="${googleClientId}" style="width:100%" />
+            <p class="text-xs text-muted mt-1" style="font-size:0.7rem;">Default ID is provided. You can change this later in Settings.</p>
+          </div>
 
-        <div class="form-group mb-4">
-          <label class="form-label">Google Apps Script Web App URL</label>
-          <input type="text" class="input" id="portal_url" placeholder="https://script.google.com/macros/s/.../exec" value="${portalUrl}" style="width:100%" />
+          <div style="display:flex; flex-direction:column; gap:12px; margin-top:16px;">
+            <button type="button" class="btn ${googleConnected ? 'btn-secondary' : 'btn-primary'} btn-block" id="wizard-connect-btn">
+              ${googleConnected ? '✅ Google Drive Connected' : '🔑 Connect Google Drive'}
+            </button>
+          </div>
+
+          <div id="wizard-sync-status" class="hidden mt-3 alert alert-info" style="font-size:0.8rem; padding:8px 12px; margin-bottom:0;">
+            Ready to connect.
+          </div>
         </div>
 
         <div class="flex gap-2">
           <button type="button" class="btn btn-secondary" id="back-btn">&larr; Back</button>
           <button type="button" class="btn btn-primary" style="flex:1" id="next-btn">Continue &rarr;</button>
+          <button type="button" class="btn btn-ghost" id="skip-btn">Skip Setup</button>
         </div>
       `;
+
+      const connectBtn = stepContainer.querySelector('#wizard-connect-btn');
+      const statusBox = stepContainer.querySelector('#wizard-sync-status');
+      const clientIdInput = stepContainer.querySelector('#wizard-client-id');
+
+      connectBtn?.addEventListener('click', async () => {
+        const cid = clientIdInput.value.trim();
+        if (!cid) {
+          toast.error('Please enter a Google OAuth Client ID.');
+          return;
+        }
+
+        googleClientId = cid;
+        connectBtn.disabled = true;
+        connectBtn.textContent = 'Connecting...';
+        statusBox.classList.remove('hidden');
+        statusBox.textContent = 'Initializing Google Auth popup...';
+
+        try {
+          const client = await initAuth(cid, (tokenData) => {
+            googleConnected = true;
+            connectBtn.disabled = false;
+            connectBtn.className = 'btn btn-secondary btn-block';
+            connectBtn.textContent = '✅ Google Drive Connected';
+            statusBox.className = 'mt-3 alert alert-success';
+            statusBox.textContent = 'Successfully authorized Google Drive Sync!';
+            toast.success('Google Drive authorized successfully!');
+          });
+          client.requestAccessToken({ prompt: 'consent' });
+        } catch (err) {
+          googleConnected = false;
+          connectBtn.disabled = false;
+          connectBtn.textContent = '🔑 Connect Google Drive';
+          statusBox.className = 'mt-3 alert alert-danger';
+          statusBox.textContent = 'Connection failed: ' + err.message;
+          toast.error('Authorization failed: ' + err.message);
+        }
+      });
 
       stepContainer.querySelector('#back-btn')?.addEventListener('click', () => {
         currentStep = 3;
         renderWizard();
       });
 
-      stepContainer.querySelector('#next-btn')?.addEventListener('click', () => {
-        portalUrl = stepContainer.querySelector('#portal_url').value.trim();
+      const handleAdvance = () => {
+        googleClientId = clientIdInput.value.trim();
         currentStep = 5;
         renderWizard();
+      };
+
+      stepContainer.querySelector('#next-btn')?.addEventListener('click', () => {
+        if (!googleConnected) {
+          if (confirm('⚠ Google Drive is not connected. Real-time sync and Lab Portal report uploads will be disabled until connected. Proceed?')) {
+            handleAdvance();
+          }
+        } else {
+          handleAdvance();
+        }
+      });
+
+      stepContainer.querySelector('#skip-btn')?.addEventListener('click', () => {
+        handleAdvance();
       });
 
     } else if (currentStep === 5) {
-      // Step 5: Setup Summary & Complete
+      // Step 5: Complete Apps Script Lab Portal Setup Guide
+      stepContainer.innerHTML = `
+        <h2 style="font-size:1.2rem;margin-bottom:8px;font-weight:700">Lab Portal Integration</h2>
+        <p class="text-xs text-muted mb-3">Set up a secure portal for diagnostic labs to upload patient reports directly to your Google Drive.</p>
+
+        <div style="background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius-lg);padding:16px;margin-bottom:16px; font-size:0.85rem; line-height:1.5;">
+          <div style="font-weight:700; margin-bottom:8px; color:var(--text-primary);">Google Apps Script Deployment Steps:</div>
+          <ol style="padding-left:16px; display:flex; flex-direction:column; gap:12px; margin:0;">
+            <li>Open <a href="https://script.google.com" target="_blank" style="color:var(--teal-400); text-decoration:underline;">Google Apps Script</a> and click <strong>New Project</strong>.</li>
+            <li>Rename project to <code>DocRx Lab Portal</code>.</li>
+            <li>
+              Replace manifest (<strong>appsscript.json</strong>):
+              <button class="btn btn-ghost btn-xs" id="w-copy-manifest" style="margin-left:8px; background:rgba(255,255,255,0.05);">Copy Manifest</button>
+            </li>
+            <li>
+              Replace code (<strong>Code.gs</strong>):
+              <button class="btn btn-ghost btn-xs" id="w-copy-code" style="margin-left:8px; background:rgba(255,255,255,0.05);">Copy Code</button>
+            </li>
+            <li>
+              Create HTML file named exactly <strong>Upload</strong> and paste:
+              <button class="btn btn-ghost btn-xs" id="w-copy-html" style="margin-left:8px; background:rgba(255,255,255,0.05);">Copy HTML</button>
+            </li>
+            <li>Click <strong>Deploy</strong> -> <strong>New deployment</strong>. Select type <strong>Web app</strong>. Execute as: <strong>Me</strong>, Access: <strong>Anyone</strong>.</li>
+            <li>Copy the <strong>Web App URL</strong> and paste it below.</li>
+          </ol>
+        </div>
+
+        <div class="form-group mb-4">
+          <label class="form-label">Apps Script Web App URL</label>
+          <input type="text" class="input" id="portal_url" placeholder="https://script.google.com/macros/s/.../exec" value="${portalUrl}" style="width:100%" />
+        </div>
+
+        <div class="flex gap-2">
+          <button type="button" class="btn btn-secondary" id="back-btn">&larr; Back</button>
+          <button type="button" class="btn btn-primary" style="flex:1" id="next-btn">Continue &rarr;</button>
+          <button type="button" class="btn btn-ghost" id="skip-btn">Skip Portal</button>
+        </div>
+      `;
+
+      stepContainer.querySelector('#w-copy-manifest')?.addEventListener('click', () => {
+        navigator.clipboard.writeText(MANIFEST_CODE).then(() => toast.success('appsscript.json copied!'));
+      });
+      stepContainer.querySelector('#w-copy-code')?.addEventListener('click', () => {
+        navigator.clipboard.writeText(GS_CODE).then(() => toast.success('Code.gs copied!'));
+      });
+      stepContainer.querySelector('#w-copy-html')?.addEventListener('click', () => {
+        navigator.clipboard.writeText(HTML_CODE).then(() => toast.success('Upload.html copied!'));
+      });
+
+      stepContainer.querySelector('#back-btn')?.addEventListener('click', () => {
+        currentStep = 4;
+        renderWizard();
+      });
+
+      const handleAdvance = () => {
+        portalUrl = stepContainer.querySelector('#portal_url').value.trim();
+        currentStep = 6;
+        renderWizard();
+      };
+
+      stepContainer.querySelector('#next-btn')?.addEventListener('click', handleAdvance);
+      stepContainer.querySelector('#skip-btn')?.addEventListener('click', () => {
+        stepContainer.querySelector('#portal_url').value = '';
+        handleAdvance();
+      });
+
+    } else if (currentStep === 6) {
+      // Step 6: Setup Summary & Complete
       stepContainer.innerHTML = `
         <h2 style="font-size:1.2rem;margin-bottom:8px;font-weight:700">Setup Summary</h2>
         <p class="text-xs text-muted mb-4">Review your practice credentials. Click "Save & Get Started" to launch the DocRx dashboard.</p>
@@ -553,6 +682,7 @@ export async function renderSetup(container) {
           <div class="print-footer-divider" style="margin: 10px 0;"></div>
           <div style="margin-bottom:8px"><strong>Default Pharmacy:</strong> ${pharmName ? `${pharmName} (${pharmAddr || 'No Address'}, ${pharmPhone || 'No Phone'})` : 'None'}</div>
           <div style="margin-bottom:8px"><strong>Default Lab:</strong> ${diagName ? `${diagName} (${diagAddr || 'No Address'}, ${diagPhone || 'No Phone'})` : 'None'}</div>
+          <div style="margin-bottom:8px"><strong>Google Sync Connected:</strong> ${googleConnected ? 'Yes' : 'No'}</div>
           <div style="margin-bottom:8px; word-break:break-all;"><strong>Lab Portal URL:</strong> ${portalUrl || 'None'}</div>
         </div>
 
@@ -566,7 +696,7 @@ export async function renderSetup(container) {
       `;
 
       stepContainer.querySelector('#back-btn')?.addEventListener('click', () => {
-        currentStep = 4;
+        currentStep = 5;
         renderWizard();
       });
 
@@ -583,13 +713,13 @@ export async function renderSetup(container) {
           // 1. Save Settings
           if (existing) {
             run(`UPDATE settings SET doctor_first_name=?, doctor_last_name=?, doctor_name=?, doctor_qualification=?, doctor_reg_number=?,
-                 clinic_name=?, clinic_address=?, clinic_phone=?, password_hash=?, password_salt=? WHERE id=1`,
-              [docFirst, docLast, docName, docQual, docReg, cliName, cliAddr, cliPhone, hash, salt]);
+                 clinic_name=?, clinic_address=?, clinic_phone=?, password_hash=?, password_salt=?, google_client_id=?, google_sync_enabled=? WHERE id=1`,
+              [docFirst, docLast, docName, docQual, docReg, cliName, cliAddr, cliPhone, hash, salt, googleClientId, googleConnected ? 1 : 0]);
           } else {
             run(`INSERT INTO settings (id, doctor_first_name, doctor_last_name, doctor_name, doctor_qualification, doctor_reg_number,
-                 clinic_name, clinic_address, clinic_phone, password_hash, password_salt, schema_version, google_client_id)
-                 VALUES (1,?,?,?,?,?,?,?,?,?,?,4,'219866394954-pg9187uvcq3gu0c4l51728m1u1hojt0c.apps.googleusercontent.com')`,
-              [docFirst, docLast, docName, docQual, docReg, cliName, cliAddr, cliPhone, hash, salt]);
+                 clinic_name, clinic_address, clinic_phone, password_hash, password_salt, schema_version, google_client_id, google_sync_enabled)
+                 VALUES (1,?,?,?,?,?,?,?,?,?,?,4,?,?)`,
+              [docFirst, docLast, docName, docQual, docReg, cliName, cliAddr, cliPhone, hash, salt, googleClientId, googleConnected ? 1 : 0]);
           }
 
           // 2. Save Partners
