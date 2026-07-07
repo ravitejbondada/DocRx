@@ -52,9 +52,14 @@ export function renderLayout(container) {
             </svg>
           </div>
           <div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2" style="width: 100%;">
               <div class="sidebar-brand">DocRx</div>
               <div id="sidebar-sync-indicator" class="sync-indicator offline" title="Sync Status" onclick="window.__triggerManualSync(event)"></div>
+              
+              <button class="notif-bell-btn notif-bell-wrap" id="notif-bell-desktop" style="position: relative; margin-left: auto; width: 28px; height: 28px;" title="Notifications">
+                <svg class="notif-bell-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px; height:14px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                <span class="notif-badge hidden" id="notif-badge-desktop" style="position: absolute; top: -4px; right: -4px; background: #ef4444; color: white; border-radius: 50%; width: 12px; height: 12px; font-size: 7px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 1px solid var(--card-bg);">0</span>
+              </button>
             </div>
             <div class="sidebar-subtitle">Patient Records</div>
           </div>
@@ -149,6 +154,10 @@ export function renderLayout(container) {
           </div>
         </div>
         <div id="mobile-sync-indicator-container" class="flex items-center gap-3">
+          <button class="notif-bell-btn notif-bell-wrap" id="notif-bell-mobile" style="position: relative;" title="Notifications">
+            <svg class="notif-bell-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+            <span class="notif-badge hidden" id="notif-badge-mobile" style="position: absolute; top: -4px; right: -4px; background: #ef4444; color: white; border-radius: 50%; width: 12px; height: 12px; font-size: 7px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 1px solid var(--card-bg);">0</span>
+          </button>
           <button class="theme-toggle-btn" onclick="window.__toggleTheme(event)" title="Toggle Theme"></button>
           <div class="sync-indicator offline" title="Sync Status" onclick="window.__triggerManualSync(event)"></div>
         </div>
@@ -183,6 +192,17 @@ export function renderLayout(container) {
           </button>
         `).join('')}
       </nav>
+
+      <!-- Notification Dropdown Panel -->
+      <div id="notif-dropdown" class="notif-dropdown hidden" style="position: absolute; z-index: 1000; width: 320px; background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); padding: 12px; transition: all 0.2s ease;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid var(--glass-border); padding-bottom:8px;">
+          <h4 style="margin:0; font-size:0.9rem; font-weight:600; color:var(--text-primary);">Incoming Reports</h4>
+          <button class="btn btn-ghost btn-xs" id="notif-clear-all" style="font-size:0.75rem; padding: 2px 6px;">Mark all read</button>
+        </div>
+        <div id="notif-list-container" style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+          <!-- Items will be injected here -->
+        </div>
+      </div>
     </div>
   `;
 
@@ -521,6 +541,159 @@ export function renderLayout(container) {
   document.addEventListener('click', (e) => {
     if (window.innerWidth <= 768) {
       if (!sidebar.contains(e.target)) sidebar.classList.remove('open');
+    }
+  });
+
+  // --- NOTIFICATION BELL LOGIC ---
+  const notifDropdown = container.querySelector('#notif-dropdown');
+  
+  function formatElapsed(timestamp) {
+    const diffMs = Date.now() - timestamp;
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d ago`;
+  }
+
+  function updateBadgeCount() {
+    const raw = localStorage.getItem('docrx_notifications') || '[]';
+    let notifs = [];
+    try {
+      notifs = JSON.parse(raw);
+    } catch (e) {
+      notifs = [];
+    }
+    const unreadCount = notifs.filter(n => !n.read).length;
+
+    const desktopBadge = container.querySelector('#notif-badge-desktop');
+    const mobileBadge = container.querySelector('#notif-badge-mobile');
+
+    if (unreadCount > 0) {
+      if (desktopBadge) {
+        desktopBadge.textContent = unreadCount;
+        desktopBadge.classList.remove('hidden');
+      }
+      if (mobileBadge) {
+        mobileBadge.textContent = unreadCount;
+        mobileBadge.classList.remove('hidden');
+      }
+    } else {
+      desktopBadge?.classList.add('hidden');
+      mobileBadge?.classList.add('hidden');
+    }
+  }
+
+  function renderNotificationsList() {
+    const listContainer = container.querySelector('#notif-list-container');
+    if (!listContainer) return;
+
+    const raw = localStorage.getItem('docrx_notifications') || '[]';
+    let notifs = [];
+    try {
+      notifs = JSON.parse(raw);
+    } catch (e) {
+      notifs = [];
+    }
+
+    if (notifs.length === 0) {
+      listContainer.innerHTML = `
+        <div style="text-align: center; color: var(--text-tertiary); font-size: 0.8rem; padding: 20px 0;">
+          No new reports.
+        </div>
+      `;
+      return;
+    }
+
+    listContainer.innerHTML = notifs.map(n => `
+      <div class="notif-item" data-id="${n.id}" data-patient-id="${n.patientId}" style="display:flex; flex-direction:column; gap:4px; padding: 8px; border-radius: var(--radius-md); background: ${n.read ? 'transparent' : 'rgba(20, 184, 166, 0.08)'}; cursor: pointer; border: 1px solid ${n.read ? 'transparent' : 'rgba(20, 184, 166, 0.15)'}; transition: all 0.15s ease;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">${n.patientName}</span>
+          <span style="font-size: 0.7rem; color: var(--text-tertiary);">${formatElapsed(n.timestamp)}</span>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px;">
+          ${n.testNames.join(', ')}
+        </div>
+        <div style="font-size: 0.7rem; color: var(--text-tertiary); font-family: monospace;">
+          ${n.patientCode}
+        </div>
+      </div>
+    `).join('');
+
+    // Add click listeners to items
+    listContainer.querySelectorAll('.notif-item').forEach(item => {
+      item.onclick = (e) => {
+        e.stopPropagation();
+        const id = item.dataset.id;
+        const patientId = item.dataset.patientId;
+        
+        // Mark as read
+        const updated = notifs.map(x => x.id === id ? { ...x, read: true } : x);
+        localStorage.setItem('docrx_notifications', JSON.stringify(updated));
+        
+        // Hide dropdown and navigate
+        notifDropdown?.classList.add('hidden');
+        updateBadgeCount();
+        navigate(`/patients/${patientId}`);
+      };
+    });
+  }
+
+  const toggleDropdown = (e, align) => {
+    e.stopPropagation();
+    if (!notifDropdown) return;
+    const isHidden = notifDropdown.classList.contains('hidden');
+    if (isHidden) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      if (align === 'left') {
+        notifDropdown.style.left = `${rect.left}px`;
+        notifDropdown.style.top = `${rect.bottom + window.scrollY + 8}px`;
+        notifDropdown.style.right = 'auto';
+      } else {
+        notifDropdown.style.right = `${window.innerWidth - rect.right}px`;
+        notifDropdown.style.top = `${rect.bottom + window.scrollY + 8}px`;
+        notifDropdown.style.left = 'auto';
+      }
+      notifDropdown.classList.remove('hidden');
+      renderNotificationsList();
+    } else {
+      notifDropdown.classList.add('hidden');
+    }
+  };
+
+  container.querySelector('#notif-bell-desktop')?.addEventListener('click', (e) => toggleDropdown(e, 'left'));
+  container.querySelector('#notif-bell-mobile')?.addEventListener('click', (e) => toggleDropdown(e, 'right'));
+
+  container.querySelector('#notif-clear-all')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const raw = localStorage.getItem('docrx_notifications') || '[]';
+    let notifs = [];
+    try {
+      notifs = JSON.parse(raw);
+    } catch (err) {
+      notifs = [];
+    }
+    const updated = notifs.map(x => ({ ...x, read: true }));
+    localStorage.setItem('docrx_notifications', JSON.stringify(updated));
+    updateBadgeCount();
+    renderNotificationsList();
+  });
+
+  // Close dropdown on click outside
+  document.addEventListener('click', () => {
+    notifDropdown?.classList.add('hidden');
+  });
+
+  // Initial update
+  updateBadgeCount();
+
+  // Listen to custom notification events
+  window.addEventListener('docrx_new_reports', () => {
+    updateBadgeCount();
+    if (notifDropdown && !notifDropdown.classList.contains('hidden')) {
+      renderNotificationsList();
     }
   });
 

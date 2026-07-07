@@ -446,6 +446,32 @@ a:hover { color: var(--teal-300); }
   height: 16px;
 }
 
+.notif-bell-btn {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease-out);
+}
+.notif-bell-btn:hover {
+  background: var(--glass-hover);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+.notif-bell-btn:active {
+  transform: translateY(0);
+}
+.notif-bell-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* ── Mobile Top Bar (hidden on desktop) ──────────────────────── */
 .mobile-top-bar { display: none; }
 

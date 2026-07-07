@@ -44,10 +44,27 @@ export async function buildZip(onProgress = () => {}) {
 
 // ── Google Drive Upload ───────────────────────────────────────
 async function getAccessToken() {
+  let clientId = GDRIVE_CLIENT_ID;
+  try {
+    const { getDB } = await import('../db/index.js');
+    const db = getDB();
+    const settingsRes = db.exec("SELECT google_client_id FROM settings WHERE id = 1");
+    if (settingsRes.length && settingsRes[0].values.length) {
+      clientId = settingsRes[0].values[0][0];
+    }
+  } catch (dbErr) {
+    console.warn("Could not fetch Client ID from settings database inside zip.js", dbErr);
+  }
+
+  // Fallback if configured client ID is empty or default placeholder
+  if (!clientId || clientId.startsWith('YOUR_GOOGLE_OAUTH_CLIENT_ID')) {
+    clientId = '219866394954-pg9187uvcq3gu0c4l51728m1u1hojt0c.apps.googleusercontent.com'; // Default client ID
+  }
+
   return new Promise((resolve, reject) => {
     if (!window.google) { reject(new Error('Google API not loaded')); return; }
     const client = window.google.accounts.oauth2.initTokenClient({
-      client_id: GDRIVE_CLIENT_ID,
+      client_id: clientId,
       scope: GDRIVE_SCOPE,
       callback: (resp) => {
         if (resp.error) reject(new Error(resp.error));

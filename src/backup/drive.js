@@ -17,9 +17,11 @@ function loadGisScript() {
   });
 }
 
+let tokenClient = null;
+
 export function initAuth(clientId, onTokenCallback) {
   return loadGisScript().then(() => {
-    const client = google.accounts.oauth2.initTokenClient({
+    tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: 'https://www.googleapis.com/auth/drive.appdata',
       callback: (response) => {
@@ -30,13 +32,14 @@ export function initAuth(clientId, onTokenCallback) {
         const expiry = Date.now() + (response.expires_in * 1000);
         const tokenData = {
           accessToken: response.access_token,
-          expiresAt: expiry
+          expiresAt: expiry,
+          clientId: clientId
         };
         localStorage.setItem('docrx_gdrive_token', JSON.stringify(tokenData));
         if (onTokenCallback) onTokenCallback(tokenData);
       }
     });
-    return client;
+    return tokenClient;
   });
 }
 
@@ -46,12 +49,49 @@ export function getSavedToken() {
   try {
     const data = JSON.parse(raw);
     if (Date.now() > data.expiresAt - 60000) { // Expired or expiring within 1 minute
-      localStorage.removeItem('docrx_gdrive_token');
-      return null;
+      return null; // Return null so caller triggers refresh, but keep metadata for clientId
     }
     return data.accessToken;
   } catch (e) {
     return null;
+  }
+}
+
+export async function refreshTokenSilently() {
+  const raw = localStorage.getItem('docrx_gdrive_token');
+  if (!raw) return Promise.reject(new Error('No Google token details available in storage.'));
+  
+  try {
+    const data = JSON.parse(raw);
+    let clientId = data.clientId;
+    
+    if (!clientId) {
+      // Fallback to query settings table if clientId not in token data
+      try {
+        const { getDB } = await import('../db/index.js');
+        const db = getDB();
+        const settingsRes = db.exec("SELECT google_client_id FROM settings WHERE id = 1");
+        if (settingsRes.length && settingsRes[0].values.length) {
+          clientId = settingsRes[0].values[0][0];
+        }
+      } catch (dbErr) {
+        console.warn("Could not fetch Client ID from settings database", dbErr);
+      }
+    }
+    
+    if (!clientId) {
+      return Promise.reject(new Error('No Google Client ID configured.'));
+    }
+
+    return new Promise((resolve, reject) => {
+      initAuth(clientId, (tokenData) => {
+        resolve(tokenData.accessToken);
+      }).then((client) => {
+        client.requestAccessToken({ prompt: '' });
+      }).catch(reject);
+    });
+  } catch (e) {
+    return Promise.reject(e);
   }
 }
 

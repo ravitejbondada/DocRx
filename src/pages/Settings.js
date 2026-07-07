@@ -61,7 +61,6 @@ export function renderSettings(container) {
             { id: 'clinic',   label: 'Clinic Info' },
             { id: 'security', label: 'Security' },
             { id: 'backup',   label: 'Backup & Restore' },
-            { id: 'portal',   label: 'Lab Portal' },
             { id: 'storage',  label: 'Storage' },
           ].map(tab => `
             <button class="btn ${activeTab === tab.id ? 'btn-primary' : 'btn-ghost'} btn-sm" style="flex-shrink:0"
@@ -217,6 +216,41 @@ export function renderSettings(container) {
           ${s.last_sync_timestamp ? `<div class="text-xs text-muted mt-3" id="sync-time-display">Last synchronized: ${s.last_sync_timestamp}</div>` : ''}
         </div>
 
+        <div class="card card-p mb-4">
+          <div class="section-title mb-2">Diagnostic Lab Portal Connection</div>
+          <p class="text-sm text-muted mb-4" style="line-height:1.6">
+            Configure the URL diagnostic lab partners use to upload patient lab reports directly into your secure Google Drive.
+          </p>
+          <div class="form-group mb-4">
+            <label class="form-label">Apps Script Web App URL</label>
+            <div class="flex gap-2">
+              <input type="text" class="input" id="portal-url" placeholder="https://script.google.com/macros/s/.../exec" value="${portalUrl}" style="flex:1" />
+              <button class="btn btn-primary" id="save-portal-url-btn">Save URL</button>
+            </div>
+          </div>
+
+          ${portalUrl ? `
+          <div class="print-footer-divider" style="margin: 16px 0;"></div>
+          <div class="section-title mb-2" style="font-size:0.95rem">Shareable Portal Link</div>
+          <p class="text-xs text-muted mb-3">Copy this link or share it directly with your diagnostic lab partners via WhatsApp.</p>
+          <div class="flex gap-2 items-center mb-3">
+            <input type="text" class="input" id="share-portal-url" value="${portalShortUrl || portalUrl}" readonly style="flex:1; background:var(--glass-bg); font-family:monospace; font-size:0.85rem;" />
+            <button class="btn btn-secondary btn-sm" id="copy-share-btn">Copy</button>
+            <button class="btn btn-primary btn-sm" id="share-wa-btn">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+              Share Link
+            </button>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="open-portal-guide-btn">
+            📖 View Apps Script Setup Guide
+          </button>
+          ` : `
+          <button class="btn btn-secondary btn-sm" id="open-portal-guide-btn">
+            📖 View Apps Script Setup Guide
+          </button>
+          `}
+        </div>
+
         <div class="card card-p">
           <div class="section-title mb-2">Restore from Backup</div>
           <p class="text-sm text-muted mb-4" style="line-height:1.6">
@@ -252,99 +286,12 @@ export function renderSettings(container) {
           </div>
         </div>
       </div>
-
-      <!-- Lab Portal Tab -->
-      <div id="panel-portal" class="${activeTab !== 'portal' ? 'hidden' : ''}">
-        ${!getSavedToken() ? `
-        <div class="alert alert-warning mb-4">
-          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-          <div>
-            <strong>Google Drive Sync is Disconnected!</strong><br/>
-            DocRx requires Google Drive to be connected under the <strong>Backup & Restore</strong> tab in order to poll and download incoming lab reports.
-          </div>
-        </div>
-        ` : ''}
-
-        <div class="card card-p mb-4">
-          <div class="section-title mb-2">Configure Diagnostic Lab Portal</div>
-          <p class="text-sm text-muted mb-4" style="line-height:1.6">
-            Enter your Google Apps Script Web App URL below. External diagnostic labs will use this URL to upload PDF reports directly into your secure Google Drive.
-          </p>
-          <div class="form-group mb-4">
-            <label class="form-label">Apps Script Web App URL</label>
-            <div class="flex gap-2">
-              <input type="text" class="input" id="portal-url" placeholder="https://script.google.com/macros/s/.../exec" value="${portalUrl}" style="flex:1" />
-              <button class="btn btn-primary" id="save-portal-url-btn">Save URL</button>
-            </div>
-          </div>
-
-          ${portalUrl ? `
-          <div class="print-footer-divider" style="margin: 16px 0;"></div>
-          <div class="section-title mb-2" style="font-size:0.95rem">Shareable Portal Link</div>
-          <p class="text-xs text-muted mb-3">Copy this link or share it directly with your diagnostic lab partners via WhatsApp.</p>
-          <div class="flex gap-2 items-center">
-            <input type="text" class="input" id="share-portal-url" value="${portalShortUrl || portalUrl}" readonly style="flex:1; background:var(--glass-bg); font-family:monospace; font-size:0.85rem;" />
-            <button class="btn btn-secondary btn-sm" id="copy-share-btn">Copy</button>
-            <button class="btn btn-primary btn-sm" id="share-wa-btn">
-              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
-              Share Link
-            </button>
-          </div>
-          ${portalShortUrl ? `
-            <div style="font-size: 0.7rem; color: var(--text-tertiary); margin-top: 6px; word-break: break-all;">
-              Original URL: <span style="font-family: monospace;">${portalUrl}</span>
-            </div>
-          ` : ''}
-          ` : ''}
-        </div>
-
-        <div class="card card-p">
-          <div class="section-title mb-4">Step-by-Step Setup Guide</div>
-          <ol class="text-sm text-muted" style="padding-left: 20px; display:flex; flex-direction:column; gap:16px;">
-            <li>Open <a href="https://script.google.com" target="_blank" style="color:var(--teal-400); text-decoration:underline;">Google Apps Script</a> and click <strong>New Project</strong>.</li>
-            <li>Rename the project to <code>DocRx Lab Portal</code>.</li>
-            <li>
-              Enable and edit the <strong>appsscript.json</strong> manifest file:
-              <ul style="padding-left: 20px; margin-top: 8px; list-style-type: disc; display:flex; flex-direction:column; gap:6px;">
-                <li>Click the gear icon (<strong>Project Settings</strong>) on the left sidebar.</li>
-                <li>Check the box for <strong>"Show 'appsscript.json' manifest file in editor"</strong>.</li>
-                <li>Go back to the editor (pencil icon on the left), select <strong>appsscript.json</strong> in the file list, and replace its entire contents with the configuration below:</li>
-              </ul>
-              <div class="mt-2" style="position:relative;">
-                <button class="btn btn-ghost btn-sm" id="copy-manifest-btn" style="position:absolute; right:8px; top:8px; background:rgba(255,255,255,0.05); font-size:0.75rem;">Copy Manifest</button>
-                <pre id="manifest-json-text" style="background:#0f172a; color:#f8fafc; padding:16px; border-radius:8px; font-family:monospace; font-size:0.8rem; overflow-x:auto; max-height:220px; border:1px solid rgba(255,255,255,0.08);">${e(MANIFEST_CODE)}</pre>
-              </div>
-            </li>
-            <li>
-              Select <strong>Code.gs</strong> in the file list and replace all its contents with the code below:
-              <div class="mt-2" style="position:relative;">
-                <button class="btn btn-ghost btn-sm" id="copy-code-btn" style="position:absolute; right:8px; top:8px; background:rgba(255,255,255,0.05); font-size:0.75rem;">Copy Code</button>
-                <pre id="code-gs-text" style="background:#0f172a; color:#f8fafc; padding:16px; border-radius:8px; font-family:monospace; font-size:0.8rem; overflow-x:auto; max-height:220px; border:1px solid rgba(255,255,255,0.08);">${e(GS_CODE)}</pre>
-              </div>
-            </li>
-            <li>Click the <strong>+</strong> icon next to Files, select <strong>HTML</strong>, and name it exactly <code>Upload</code>.</li>
-            <li>
-              Replace all contents of <strong>Upload.html</strong> with the code below:
-              <div class="mt-2" style="position:relative;">
-                <button class="btn btn-ghost btn-sm" id="copy-html-btn" style="position:absolute; right:8px; top:8px; background:rgba(255,255,255,0.05); font-size:0.75rem;">Copy HTML</button>
-                <pre id="upload-html-text" style="background:#0f172a; color:#f8fafc; padding:16px; border-radius:8px; font-family:monospace; font-size:0.8rem; overflow-x:auto; max-height:220px; border:1px solid rgba(255,255,255,0.08);">${e(HTML_CODE)}</pre>
-              </div>
-            </li>
-            <li>Click <strong>Deploy</strong> (top right) -> <strong>New deployment</strong>.</li>
-            <li>Click the gear icon next to "Select type", choose <strong>Web app</strong>, and enter a description (e.g. <code>DocRx Lab Upload Portal</code>).</li>
-            <li>Ensure <strong>Execute as:</strong> is set to <strong>Me (your-email@gmail.com)</strong>.</li>
-            <li>Ensure <strong>Who has access:</strong> is set to <strong>Anyone</strong>.</li>
-            <li>Click <strong>Deploy</strong>, authorize the permissions, copy the <strong>Web app URL</strong>, and paste it into the field at the top of this tab!</li>
-          </ol>
-        </div>
-      </div>
-
     </div>
   `;
 
   // Tab switching
   window.__switchTab = (tabId) => {
-    ['clinic','security','backup','portal','storage'].forEach(t => {
+    ['clinic','security','backup','storage'].forEach(t => {
       container.querySelector(`#panel-${t}`)?.classList.toggle('hidden', t !== tabId);
       const btn = container.querySelector(`#tab-${t}`);
       if (btn) btn.className = `btn ${t === tabId ? 'btn-primary' : 'btn-ghost'} btn-sm`;
@@ -547,7 +494,7 @@ export function renderSettings(container) {
     
     btn.disabled = false;
     btn.textContent = originalText;
-    navigate('/settings?tab=portal');
+    navigate('/settings?tab=backup');
   });
 
   // Copy share URL
@@ -568,32 +515,82 @@ export function renderSettings(container) {
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
   });
 
-  // Copy code blocks
-  container.querySelector('#copy-manifest-btn')?.addEventListener('click', () => {
-    const manifest = container.querySelector('#manifest-json-text')?.textContent || '';
-    navigator.clipboard.writeText(manifest).then(() => {
-      toast.success('appsscript.json copied!');
-    });
-  });
+  // Open Lab Portal Guide Modal
+  container.querySelector('#open-portal-guide-btn')?.addEventListener('click', () => {
+    const guideHtml = `
+      <div style="font-size:0.9rem; line-height:1.5; color:var(--text-primary); max-height:480px; overflow-y:auto; padding-right:10px;">
+        <ol style="padding-left:16px; display:flex; flex-direction:column; gap:16px; margin:0;">
+          <li>Open <a href="https://script.google.com" target="_blank" style="color:var(--teal-400); text-decoration:underline;">Google Apps Script</a> and click <strong>New Project</strong>.</li>
+          <li>Rename the project to <code>DocRx Lab Portal</code>.</li>
+          <li>
+            Enable and edit the <strong>appsscript.json</strong> manifest file:
+            <ul style="padding-left: 16px; margin-top: 8px; list-style-type: disc; display:flex; flex-direction:column; gap:6px;">
+              <li>Click the gear icon (<strong>Project Settings</strong>) on the left sidebar.</li>
+              <li>Check the box for <strong>"Show 'appsscript.json' manifest file in editor"</strong>.</li>
+              <li>Go back to the editor (pencil icon on the left), select <strong>appsscript.json</strong> in the file list, and replace its entire contents with the configuration below:</li>
+            </ul>
+            <div class="mt-2" style="position:relative;">
+              <button class="btn btn-ghost btn-sm" id="copy-manifest-btn" style="position:absolute; right:8px; top:8px; background:rgba(255,255,255,0.05); font-size:0.75rem;">Copy Manifest</button>
+              <pre id="manifest-json-text" style="background:#0f172a; color:#f8fafc; padding:12px; border-radius:8px; font-family:monospace; font-size:0.8rem; overflow-x:auto; max-height:160px; border:1px solid rgba(255,255,255,0.08);">${e(MANIFEST_CODE)}</pre>
+            </div>
+          </li>
+          <li>
+            Select <strong>Code.gs</strong> in the file list and replace all its contents with the code below:
+            <div class="mt-2" style="position:relative;">
+              <button class="btn btn-ghost btn-sm" id="copy-code-btn" style="position:absolute; right:8px; top:8px; background:rgba(255,255,255,0.05); font-size:0.75rem;">Copy Code</button>
+              <pre id="code-gs-text" style="background:#0f172a; color:#f8fafc; padding:12px; border-radius:8px; font-family:monospace; font-size:0.8rem; overflow-x:auto; max-height:160px; border:1px solid rgba(255,255,255,0.08);">${e(GS_CODE)}</pre>
+            </div>
+          </li>
+          <li>Click the <strong>+</strong> icon next to Files, select <strong>HTML</strong>, and name it exactly <code>Upload</code>.</li>
+          <li>
+            Replace all contents of <strong>Upload.html</strong> with the code below:
+            <div class="mt-2" style="position:relative;">
+              <button class="btn btn-ghost btn-sm" id="copy-html-btn" style="position:absolute; right:8px; top:8px; background:rgba(255,255,255,0.05); font-size:0.75rem;">Copy HTML</button>
+              <pre id="upload-html-text" style="background:#0f172a; color:#f8fafc; padding:12px; border-radius:8px; font-family:monospace; font-size:0.8rem; overflow-x:auto; max-height:160px; border:1px solid rgba(255,255,255,0.08);">${e(HTML_CODE)}</pre>
+            </div>
+          </li>
+          <li>Click <strong>Deploy</strong> (top right) -> <strong>New deployment</strong>.</li>
+          <li>Click the gear icon next to "Select type", choose <strong>Web app</strong>.</li>
+          <li>Ensure <strong>Execute as:</strong> is set to <strong>Me (your-email@gmail.com)</strong>.</li>
+          <li>Ensure <strong>Who has access:</strong> is set to <strong>Anyone</strong>.</li>
+          <li>Click <strong>Deploy</strong>, authorize permissions, copy the <strong>Web app URL</strong>, and paste it into the URL field in Settings.</li>
+        </ol>
+      </div>
+    `;
 
-  container.querySelector('#copy-code-btn')?.addEventListener('click', () => {
-    const code = container.querySelector('#code-gs-text')?.textContent || '';
-    navigator.clipboard.writeText(code).then(() => {
-      toast.success('Code.gs copied!');
+    const overlay = showModal({
+      title: 'Lab Portal Setup Guide',
+      bodyHtml: guideHtml,
+      confirmText: 'Done',
+      cancelText: 'Close'
     });
-  });
 
-  container.querySelector('#copy-html-btn')?.addEventListener('click', () => {
-    const htmlCode = container.querySelector('#upload-html-text')?.textContent || '';
-    navigator.clipboard.writeText(htmlCode).then(() => {
-      toast.success('Upload.html copied!');
+    overlay.querySelector('.modal').style.maxWidth = '680px';
+    overlay.querySelector('#modal-cancel-btn').style.display = 'none';
+
+    overlay.querySelector('#copy-manifest-btn')?.addEventListener('click', () => {
+      navigator.clipboard.writeText(MANIFEST_CODE).then(() => {
+        toast.success('appsscript.json copied!');
+      });
+    });
+
+    overlay.querySelector('#copy-code-btn')?.addEventListener('click', () => {
+      navigator.clipboard.writeText(GS_CODE).then(() => {
+        toast.success('Code.gs copied!');
+      });
+    });
+
+    overlay.querySelector('#copy-html-btn')?.addEventListener('click', () => {
+      navigator.clipboard.writeText(HTML_CODE).then(() => {
+        toast.success('Upload.html copied!');
+      });
     });
   });
 }
 
 function e(val) { return val != null ? String(val).replace(/"/g, '&quot;').replace(/</g, '&lt;') : ''; }
 
-const MANIFEST_CODE = `{
+export const MANIFEST_CODE = `{
   "timeZone": "Asia/Kolkata",
   "dependencies": {},
   "exceptionLogging": "STACKDRIVER",
@@ -608,7 +605,7 @@ const MANIFEST_CODE = `{
   ]
 }`;
 
-const GS_CODE = `function doGet(e) {
+export const GS_CODE = `function doGet(e) {
   var template = HtmlService.createTemplateFromFile('Upload');
   template.queueData = JSON.stringify(getPendingTestsQueue());
   return template.evaluate()
@@ -734,7 +731,7 @@ function uploadReport(base64Data, fileName, patientCode, authCode, visitId, sele
 }
 `;
 
-const HTML_CODE = `<!DOCTYPE html>
+export const HTML_CODE = `<!DOCTYPE html>
 <html>
 <head>
   <base target="_top">

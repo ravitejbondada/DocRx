@@ -49,7 +49,16 @@ export async function syncWithGoogleDrive(onStatusCallback) {
     onStatusCallback?.(msg);
     if (window.__updateSyncStatus) window.__updateSyncStatus(msg);
   };
-  const token = getSavedToken();
+  let token = getSavedToken();
+  if (!token) {
+    status({ type: 'syncing', message: 'Refreshing Google credentials...' });
+    try {
+      const { refreshTokenSilently } = await import('./drive.js');
+      token = await refreshTokenSilently();
+    } catch (e) {
+      console.warn("Silent refresh failed:", e);
+    }
+  }
   if (!token) {
     status({ type: 'error', message: 'Google authentication required.' });
     return false;
@@ -364,6 +373,48 @@ async function ingestIncomingReports(token, db) {
         }
       }
       
+      // Query test names for notification
+      let testNames = [];
+      if (targetVisitId) {
+        let testQuery = `SELECT test_name FROM diagnostic_tests WHERE visit_id = ? AND deleted = 0`;
+        let params = [targetVisitId];
+        if (testIdsStr && testIdsStr !== 'all') {
+          const testIds = testIdsStr.split('+').filter(Boolean);
+          testQuery = `SELECT test_name FROM diagnostic_tests WHERE id IN (${testIds.map(() => '?').join(',')})`;
+          params = testIds;
+        }
+        try {
+          const testNamesRes = db.exec(testQuery, params);
+          if (testNamesRes.length && testNamesRes[0].values.length) {
+            testNames = testNamesRes[0].values.map(v => v[0]);
+          }
+        } catch (err) {
+          console.warn("Failed to query test names for notification", err);
+        }
+      }
+      if (!testNames.length) {
+        testNames = ['Lab Report'];
+      }
+
+      // Add to local notifications
+      try {
+        const rawNotifs = localStorage.getItem('docrx_notifications') || '[]';
+        const notifs = JSON.parse(rawNotifs);
+        notifs.unshift({
+          id: Math.random().toString(36).substring(2, 11),
+          patientId: patientId,
+          patientCode: patientCode,
+          patientName: fullName,
+          testNames: testNames,
+          timestamp: Date.now(),
+          read: false
+        });
+        localStorage.setItem('docrx_notifications', JSON.stringify(notifs));
+        window.dispatchEvent(new CustomEvent('docrx_new_reports'));
+      } catch (err) {
+        console.warn("Failed to save report notification", err);
+      }
+
       // Delete the file from Google Drive
       await deleteReportFile(token, file.id);
       processedCount++;
