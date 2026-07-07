@@ -705,4 +705,9 @@ export function updateNavActive(route) {
   document.querySelectorAll('.nav-item, .bottom-nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.route === route);
   });
+  
+  // Trigger background sync debounced on route change (e.g. exiting visit forms)
+  import('../backup/sync.js').then(({ triggerBackgroundSyncDebounced }) => {
+    triggerBackgroundSyncDebounced();
+  }).catch(() => {});
 }
